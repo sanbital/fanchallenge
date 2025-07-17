@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>뮤니버스 팬육대 만보기</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <style>
+    body {
+      background: black;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+    }
+    .centered {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .logo {
+      max-width: 200px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #1c1c1c;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 12px rgba(0, 255, 170, 0.2);
+      margin-bottom: 30px;
+    }
+    input, select, button {
+      font-size: 16px;
+      padding: 8px 12px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: none;
+    }
+    button {
+      background: #00ffae;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+    .bar-container {
+      background: #444;
+      border-radius: 10px;
+      overflow: hidden;
+      height: 24px;
+      margin-top: 6px;
+    }
+    .bar {
+      background: #00ffae;
+      height: 100%;
+      text-align: right;
+      padding-right: 10px;
+      line-height: 24px;
+      font-size: 14px;
+      color: black;
+      font-weight: bold;
+    }
+    .team-img {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    .preview-img {
+      width: 50px;
+      height: 50px;
+      object-fit: cover;
+      border: 1px solid #555;
+      margin: 4px;
+    }
+    .success {
+      color: #00ffae;
+      font-weight: bold;
+    }
+    .warn {
+      color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <div id="auth" class="centered">
+    <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo" />
+    <div class="card">
+      <h2>참가 코드 입력</h2>
+      <input id="codeInput" placeholder="참가자 코드 입력">
+      <button onclick="verifyCode()">입력</button>
+      <div id="codeMessage"></div>
+    </div>
+  </div>
+
+  <div id="main" class="hidden">
+    <div class="card">
+      <label>팀 선택: </label>
+      <select id="teamSelect"></select>
+    </div>
+    <div class="card">
+      <input type="file" id="imageUpload" accept="image/*" />
+      <div id="result" class="warn">아직 입력이 없습니다.</div>
+    </div>
+    <div class="card">
+      <h3>팀 순위</h3>
+      <div id="ranking"></div>
+    </div>
+  </div>
+
+  <div id="admin" class="hidden">
+    <div class="card">
+      <h3>팀 생성</h3>
+      <input id="newTeamName" placeholder="팀 이름">
+      <input type="file" id="newTeamImage" accept="image/jpeg,image/png">
+      <button onclick="createTeam()">팀 생성</button>
+      <div id="adminCreateMsg" class="success"></div>
+    </div>
+    <div class="card">
+      <h3>기존 팀 삭제</h3>
+      <select id="deleteTeamSelect"></select>
+      <button onclick="deleteTeam()">팀 삭제</button>
+    </div>
+    <div class="card">
+      <h3>현재 팀 목록</h3>
+      <div id="adminTeamList"></div>
+    </div>
+  </div>
+
+  <script>
+    const userCode = "1234";
+    const adminCode = "aaa";
+    let teams = JSON.parse(localStorage.getItem("teams") || '{}');
+    let steps = JSON.parse(localStorage.getItem("steps") || '{}');
+    let images = JSON.parse(localStorage.getItem("images") || '{}');
+    let userLog = JSON.parse(localStorage.getItem("userLog") || '{}');
+
+    function verifyCode() {
+      const input = document.getElementById("codeInput").value.trim();
+      if (!input) return;
+      localStorage.setItem("currentUser", input);
+      if (input === adminCode) {
+        promptAdmin();
+      } else {
+        document.getElementById("auth").classList.add("hidden");
+        document.getElementById("main").classList.remove("hidden");
+        updateTeamSelect("teamSelect");
+        renderRanking();
+      }
+    }
+
+    function promptAdmin() {
+      document.getElementById("auth").classList.add("hidden");
+      document.getElementById("main").classList.add("hidden");
+      document.getElementById("admin").classList.remove("hidden");
+      updateTeamSelect("deleteTeamSelect");
+      updateTeamList();
+    }
+
+    function updateTeamSelect(selectId) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      select.innerHTML = '';
+      Object.keys(images).forEach(team => {
+        const opt = document.createElement('option');
+        opt.value = team;
+        opt.text = team;
+        select.appendChild(opt);
+      });
+    }
+
+    function updateTeamList() {
+      const div = document.getElementById("adminTeamList");
+      if (!div) return;
+      div.innerHTML = '';
+      Object.entries(images).forEach(([team, img]) => {
+        const p = document.createElement('p');
+        p.innerHTML = `<strong>${team}</strong><br><img src="${img}" class="preview-img">`;
+        div.appendChild(p);
+      });
+    }
+
+    function createTeam() {
+      const name = document.getElementById("newTeamName").value.trim();
+      const file = document.getElementById("newTeamImage").files[0];
+      const msg = document.getElementById("adminCreateMsg");
+      if (!name || teams[name]) return alert("팀 이름이 중복되거나 비어 있습니다.");
+      if (!file) return alert("팀 이미지가 필요합니다.");
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        teams[name] = 0;
+        steps[name] = 0;
+        images[name] = e.target.result;
+        save();
+        msg.innerText = "팀이 생성되었습니다.";
+      }
+      reader.readAsDataURL(file);
+    }
+
+    function deleteTeam() {
+      const name = document.getElementById("deleteTeamSelect").value;
+      if (!confirm(`${name} 팀을 삭제하시겠습니까?`)) return;
+      delete teams[name];
+      delete steps[name];
+      delete images[name];
+      save();
+    }
+
+    function save() {
+      localStorage.setItem("teams", JSON.stringify(teams));
+      localStorage.setItem("steps", JSON.stringify(steps));
+      localStorage.setItem("images", JSON.stringify(images));
+      localStorage.setItem("userLog", JSON.stringify(userLog));
+      updateTeamSelect("deleteTeamSelect");
+      updateTeamSelect("teamSelect");
+      updateTeamList();
+      renderRanking();
+    }
+
+    function renderRanking() {
+      const div = document.getElementById("ranking");
+      div.innerHTML = '';
+      const sorted = Object.entries(steps).sort((a, b) => b[1] - a[1]);
+      const max = sorted[0]?.[1] || 1;
+      sorted.forEach(([team, value], i) => {
+        const img = images[team];
+        const percent = Math.round((value / max) * 100);
+        const barHTML = `
+          <div style="margin: 10px 0;">
+            <div><strong>${i + 1}위</strong> | <img src="${img}" class="team-img"> ${team}</div>
+            <div class="bar-container">
+              <div class="bar" style="width:${percent}%;">${value.toLocaleString()}보</div>
+            </div>
+          </div>`;
+        div.innerHTML += barHTML;
+      });
+    }
+
+    document.getElementById("imageUpload").addEventListener("change", function () {
+      const file = this.files[0];
+      const team = document.getElementById("teamSelect").value;
+      const result = document.getElementById("result");
+      const user = localStorage.getItem("currentUser");
+      if (!file || !team || !user) return;
+      result.innerText = "인식 중...";
+      Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
+        .then(({ data: { words } }) => {
+          if (!words || words.length === 0) return result.innerText = "걸음 수를 찾을 수 없습니다.";
+          const sorted = words
+            .filter(w => /\d{2,4}/.test(w.text))
+            .map(w => ({ text: w.text.match(/\d{2,4}/)[0], size: w.bbox ? (w.bbox.y1 - w.bbox.y0) : 0 }))
+            .sort((a, b) => b.size - a.size);
+          if (sorted.length === 0) return result.innerText = "걸음 수를 찾을 수 없습니다.";
+          const value = parseInt(sorted[0].text, 10);
+          if (!userLog[user]) userLog[user] = 0;
+          userLog[user] += value;
+          steps[team] = (steps[team] || 0) + value;
+          save();
+          renderRanking();
+          result.innerHTML = `✅ ${team} 팀에 ${value.toLocaleString()}보 추가되었습니다!`;
+          result.className = 'success';
+        });
+    });
+  </script>
+
+  <button id="adminBtn" onclick="verifyCode()" style="position: fixed; bottom: 20px; right: 20px; background: #00ffaa; color: black; font-weight: bold; padding: 12px 16px; border-radius: 10px; border: none; cursor: pointer; z-index: 1000;">🛠 관리자</button>
+</body>
+</html>
