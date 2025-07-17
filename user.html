@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getDatabase, ref, push, get, child, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
@@ -34,34 +33,19 @@
     window.processOCR = () => {
       const file = document.getElementById('ocrImage').files[0];
       const teamId = document.getElementById('teamSelect').value;
-
-      if (!file || !teamId || teamId === "undefined") {
-        alert('이미지와 팀을 모두 선택하세요.');
-        return;
-      }
-
+      if (!file || !teamId || teamId === 'default') return alert('이미지와 팀을 선택하세요.');
       currentTeamId = teamId;
 
       const reader = new FileReader();
       reader.onload = () => {
-        Tesseract.recognize(reader.result, 'eng').then(({ data }) => {
-          const words = data.words || [];
-          const numericWords = words
-            .filter(w => /\d/.test(w.text))
-            .map(w => ({
-              text: w.text.replace(/\D/g, ''),
-              size: w.bbox.y1 - w.bbox.y0
-            }))
-            .filter(w => w.text.length >= 4);
+        Tesseract.recognize(reader.result, 'eng').then(({ data: { words } }) => {
+          if (!words || words.length === 0) return alert('문자를 인식하지 못했습니다.');
 
-          if (numericWords.length === 0) {
-            alert("4자리 이상 숫자를 인식하지 못했습니다.");
-            return;
-          }
-
-          numericWords.sort((a, b) => b.size - a.size);
-          let steps = parseInt(numericWords[0].text.slice(0, 4)) || 0;
-          if (steps >= 10000) steps = 10000;
+          const sorted = words.sort((a, b) => (b.bbox.y1 - b.bbox.y0) - (a.bbox.y1 - a.bbox.y0));
+          const largestWord = sorted[0]?.text?.match(/\d+/)?.[0] || '0';
+          let steps = parseInt(largestWord.slice(0, 4));
+          if (isNaN(steps)) steps = 0;
+          if (steps > 10000) steps = 10000;
 
           const historyRef = ref(db, `history/${teamId}`);
           push(historyRef, { time: Date.now(), steps });
@@ -83,7 +67,7 @@
     window.loadTeams = () => {
       get(child(ref(db), 'teams')).then(snapshot => {
         const select = document.getElementById('teamSelect');
-        select.innerHTML = '<option disabled selected>팀 선택</option>';
+        select.innerHTML = '<option value="default" disabled selected>팀 선택</option>';
         if (snapshot.exists()) {
           const teams = snapshot.val();
           Object.entries(teams).forEach(([key, data]) => {
@@ -108,6 +92,7 @@
         if (snapshot.exists()) {
           const teams = Object.entries(snapshot.val());
           teams.sort((a, b) => b[1].steps - a[1].steps);
+
           const maxSteps = teams[0][1].steps || 1;
 
           teams.forEach(([_, team]) => {
@@ -116,12 +101,9 @@
             wrapper.className = 'ranking-item';
 
             wrapper.innerHTML = `
-              <div class="rank-left">
+              <div class="rank-image-text">
                 <img src="${team.image || './images/default.png'}" alt="${team.name}">
-                <div class="rank-texts">
-                  <div class="team-name-ko">${team.name}</div>
-                  <div class="team-name-en">${team.name_en || ''}</div>
-                </div>
+                <div class="rank-team-name">${team.name}</div>
               </div>
               <div class="rank-bar-wrapper">
                 <div class="rank-bar" style="width: ${ratio}%"></div>
@@ -208,29 +190,26 @@
       padding: 10px;
       border-radius: 12px;
     }
-    .rank-left {
+    .rank-image-text {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 10px;
-      width: 30%;
+      width: 64px;
+      flex-shrink: 0;
     }
-    .rank-left img {
+    .rank-image-text img {
       width: 48px;
-      aspect-ratio: 1 / 1;
+      height: 48px;
       object-fit: cover;
       border-radius: 8px;
     }
-    .rank-texts {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.2;
-    }
-    .team-name-ko {
-      font-weight: 600;
-    }
-    .team-name-en {
-      font-size: 12px;
-      color: #ccc;
+    .rank-team-name {
+      font-size: 13px;
+      text-align: center;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .rank-bar-wrapper {
       background-color: #333;
@@ -266,4 +245,3 @@
   </div>
 </body>
 </html>
-
