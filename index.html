@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>팬육대:대신뛰어드림</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
@@ -40,10 +41,10 @@
   </script>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
+      font-family: 'Inter', sans-serif;
       margin: 0;
       padding: 0;
-      background: #111;
+      background: #0a0a0a;
       color: #fff;
     }
     .container {
@@ -53,22 +54,46 @@
     }
     h1, h2 {
       text-align: center;
+      margin: 16px 0;
     }
-    input, button {
+    input, button, select {
       width: 100%;
-      margin: 5px 0;
-      padding: 10px;
+      margin: 8px 0;
+      padding: 12px;
       font-size: 16px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background-color: #5a45ff;
+      color: white;
+      font-weight: 600;
+    }
+    select {
+      background-color: #222;
+      color: #fff;
     }
     #teamList img {
       width: 100px;
       height: auto;
+      border-radius: 8px;
     }
     .hidden { display: none; }
     #logo {
       display: block;
-      margin: 0 auto;
-      width: 150px;
+      margin: 20px auto;
+      width: 180px;
+    }
+    .ranking-bar {
+      background: #5a45ff;
+      height: 24px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      padding-left: 12px;
+      display: flex;
+      align-items: center;
+      color: #fff;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -78,7 +103,7 @@
     <h1>팬육대:대신뛰어드림</h1>
     <input type="text" id="codeInput" placeholder="참여 코드를 입력하세요">
     <button onclick="checkCode()">입장</button>
-    <button onclick="goToAdmin()" style="margin-top:10px;font-size:12px;">관리자 페이지</button>
+    <button onclick="goToAdmin()" style="margin-top:10px;font-size:12px;background:#333;">관리자 페이지</button>
   </div>
 
   <div class="container hidden" id="userPage">
@@ -169,15 +194,15 @@
           }
           if (rankingDiv) {
             const bar = document.createElement('div');
-            bar.style.width = (team.steps / 10000 * 100) + '%';
-            bar.style.background = '#0f0';
-            bar.style.padding = '5px';
-            bar.style.marginBottom = '4px';
+            bar.className = 'ranking-bar';
+            bar.style.width = Math.min(team.steps / 10000 * 100, 100) + '%';
             bar.textContent = `${i + 1}위 ${team.name} - ${team.steps}보`;
             rankingDiv.appendChild(bar);
           }
           if (teamListDiv) {
             const teamBox = document.createElement('div');
+            teamBox.style.display = 'inline-block';
+            teamBox.style.margin = '8px';
             teamBox.innerHTML = `<img src="${team.image}" alt="${team.name}"><br>${team.name}`;
             teamListDiv.appendChild(teamBox);
           }
@@ -205,4 +230,3 @@
     }
   </script>
 </body>
-</html>
