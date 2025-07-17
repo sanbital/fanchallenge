@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getDatabase, ref, push, get, child, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
@@ -33,7 +34,12 @@
     window.processOCR = () => {
       const file = document.getElementById('ocrImage').files[0];
       const teamId = document.getElementById('teamSelect').value;
-      if (!file || !teamId) return alert('이미지와 팀을 선택하세요.');
+
+      if (!file || !teamId || teamId === "undefined") {
+        alert('이미지와 팀을 모두 선택하세요.');
+        return;
+      }
+
       currentTeamId = teamId;
 
       const reader = new FileReader();
@@ -41,20 +47,20 @@
         Tesseract.recognize(reader.result, 'eng').then(({ data }) => {
           const words = data.words || [];
           const numericWords = words
-            .filter(w => /\d{4,}/.test(w.text))
+            .filter(w => /\d/.test(w.text))
             .map(w => ({
-              value: parseInt(w.text.replace(/\D/g, '')),
+              text: w.text.replace(/\D/g, ''),
               size: w.bbox.y1 - w.bbox.y0
-            }));
+            }))
+            .filter(w => w.text.length >= 4);
 
           if (numericWords.length === 0) {
-            alert("인식된 4자리 이상 숫자가 없습니다.");
+            alert("4자리 이상 숫자를 인식하지 못했습니다.");
             return;
           }
 
           numericWords.sort((a, b) => b.size - a.size);
-          let steps = numericWords[0].value;
-
+          let steps = parseInt(numericWords[0].text.slice(0, 4)) || 0;
           if (steps >= 10000) steps = 10000;
 
           const historyRef = ref(db, `history/${teamId}`);
@@ -102,10 +108,9 @@
         if (snapshot.exists()) {
           const teams = Object.entries(snapshot.val());
           teams.sort((a, b) => b[1].steps - a[1].steps);
-
           const maxSteps = teams[0][1].steps || 1;
 
-          teams.forEach(([_, team], index) => {
+          teams.forEach(([_, team]) => {
             const ratio = (team.steps / maxSteps) * 100;
             const wrapper = document.createElement('div');
             wrapper.className = 'ranking-item';
