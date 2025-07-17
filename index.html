@@ -52,7 +52,7 @@
       display: block;
       margin: 30px auto 20px;
     }
-    input, button {
+    input, button, select {
       width: 100%;
       font-size: 16px;
       padding: 10px;
@@ -84,6 +84,20 @@
       text-align: right;
     }
     .warn { color: yellow; font-size: 14px; text-align: center; }
+    #adminAccessBtn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #00ffae;
+      color: black;
+      font-size: 20px;
+      border: none;
+      z-index: 1000;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
@@ -100,6 +114,10 @@
     <input type="file" accept="image/*" id="ocrImage">
     <button onclick="handleOCR()">걸음 수 추출</button>
     <p id="ocrResult"></p>
+    <h2>소속 팀 선택</h2>
+    <select id="teamSelect">
+      <option value="">팀을 선택하세요</option>
+    </select>
     <h2>팀 순위</h2>
     <div id="rankingList"></div>
   </div>
@@ -112,6 +130,8 @@
     <h2>기존 팀 목록</h2>
     <div id="teamList"></div>
   </div>
+
+  <button id="adminAccessBtn" onclick="showAdminPrompt()">🔒</button>
 
   <script>
     const codeInput = document.getElementById('codeInput');
@@ -126,12 +146,24 @@
         codePage.classList.add('hidden');
         userPage.classList.remove('hidden');
         loadRanking();
+        loadTeamOptions();
       } else if (code.toLowerCase() === 'aaa') {
         codePage.classList.add('hidden');
         adminPage.classList.remove('hidden');
         loadTeams();
       } else {
         warnMessage.textContent = '올바른 코드를 입력하세요.';
+      }
+    }
+
+    function showAdminPrompt() {
+      const code = prompt("관리자 코드를 입력하세요:");
+      if (code.toLowerCase() === 'aaa') {
+        codePage.classList.add('hidden');
+        adminPage.classList.remove('hidden');
+        loadTeams();
+      } else {
+        alert("올바른 관리자 코드가 아닙니다.");
       }
     }
 
@@ -142,14 +174,34 @@
       resultBox.textContent = '분석 중...';
       const text = await Tesseract.recognize(file, 'eng');
       const raw = text.data.text.replace(/[^0-9]/g, '');
-      const step = raw.length >= 5 ? parseInt(raw.slice(0, 5)) : parseInt(raw.slice(0, 4));
+      let step = raw.length >= 5 ? parseInt(raw.slice(0, 5)) : parseInt(raw.slice(0, 4));
+      if (isNaN(step)) {
+        resultBox.textContent = '걸음 수를 인식할 수 없습니다. 더 선명한 이미지를 업로드해주세요.';
+        return;
+      }
+      if (step > 10000) step = 10000;
       resultBox.textContent = `인식된 걸음 수: ${step}`;
-      const team = prompt('소속 팀 이름을 입력하세요:');
-      if (!team) return;
+      const team = document.getElementById('teamSelect').value;
+      if (!team) {
+        alert('팀을 선택하세요!');
+        return;
+      }
       const dbRef = window.ref(window.db, `steps/${team}`);
       window.get(dbRef).then(snapshot => {
         const prev = snapshot.exists() ? snapshot.val() : 0;
         window.set(dbRef, prev + step).then(loadRanking);
+      });
+    }
+
+    function loadTeamOptions() {
+      const dbRef = window.ref(window.db, 'teams');
+      window.get(dbRef).then(snapshot => {
+        const data = snapshot.val() || {};
+        const select = document.getElementById('teamSelect');
+        select.innerHTML = '<option value="">팀을 선택하세요</option>';
+        for (const name of Object.keys(data)) {
+          select.innerHTML += `<option value="${name}">${name}</option>`;
+        }
       });
     }
 
@@ -164,7 +216,7 @@
           const percent = (step / list[0][1]) * 100;
           target.innerHTML += `
             <div><b>${idx + 1}. ${team}</b></div>
-            <div class="bar-container"><div class="bar" style="width:${percent}%;">${step}</div></div>
+            <div class="bar-container"><div class="bar" style="width:${percent}%">${step}</div></div>
           `;
         });
       });
