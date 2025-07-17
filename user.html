@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>팬육대 유저 페이지</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, push, get, child, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQewV9G-RCX1sXTHv1RY2b6z-oSOeYT9E",
+      authDomain: "fanchallenge-38077.firebaseapp.com",
+      databaseURL: "https://fanchallenge-38077-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "fanchallenge-38077",
+      storageBucket: "fanchallenge-38077.appspot.com",
+      messagingSenderId: "1033231507230",
+      appId: "1:1033231507230:web:8a7b8b57891a6b07efb30f",
+      measurementId: "G-ZMM7YPH7DL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    window.onload = () => {
+      loadTeams();
+      loadRanking();
+    };
+
+    window.processOCR = () => {
+      const file = document.getElementById('ocrImage').files[0];
+      const teamId = document.getElementById('teamSelect').value;
+      if (!file || !teamId) return alert('이미지와 팀을 선택하세요.');
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        Tesseract.recognize(reader.result, 'eng').then(({ data: { text } }) => {
+          const nums = text.match(/\d{4,}/g)?.map(n => parseInt(n.replace(/\D/g, ''))) || [];
+          const max = Math.max(...nums, 0);
+          const steps = max >= 10000 ? 10000 : max;
+
+          const historyRef = ref(db, `history/${teamId}`);
+          push(historyRef, { time: Date.now(), steps });
+
+          const teamRef = ref(db, `teams/${teamId}`);
+          get(teamRef).then(snapshot => {
+            const currentSteps = snapshot.exists() ? snapshot.val().steps || 0 : 0;
+            update(teamRef, { steps: currentSteps + steps });
+            loadRanking();
+            alert(`${steps.toLocaleString()}보가 반영되었습니다.`);
+          });
+        });
+      };
+      reader.readAsDataURL(file);
+    };
+
+    window.loadTeams = () => {
+      get(child(ref(db), 'teams')).then(snapshot => {
+        const select = document.getElementById('teamSelect');
+        select.innerHTML = '<option disabled selected>팀 선택</option>';
+        if (snapshot.exists()) {
+          const teams = snapshot.val();
+          Object.entries(teams).forEach(([key, data]) => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = data.name;
+            select.appendChild(opt);
+          });
+        }
+      });
+    };
+
+    window.loadRanking = () => {
+      get(child(ref(db), 'teams')).then(snapshot => {
+        const ranking = document.getElementById('ranking');
+        ranking.innerHTML = '';
+        if (snapshot.exists()) {
+          const teams = Object.entries(snapshot.val());
+          teams.sort((a, b) => b[1].steps - a[1].steps);
+          teams.forEach(([_, team], index) => {
+            const bar = document.createElement('div');
+            bar.className = 'ranking-bar';
+            bar.style.width = `${Math.min(team.steps / 100, 100)}%`;
+            bar.innerHTML = `${index + 1}등 ${team.name} - ${team.steps.toLocaleString()}보`;
+            ranking.appendChild(bar);
+          });
+        }
+      });
+    };
+  </script>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+      margin: 16px 0;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    input, button, select {
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background-color: #00FFC2;
+      color: #000;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    select {
+      background-color: #222;
+      color: #fff;
+    }
+    .ranking-bar {
+      background: #00FFC2;
+      height: 24px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      padding-left: 12px;
+      display: flex;
+      align-items: center;
+      color: #000;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>팬육대: 대신뛰어드림</h1>
+    <input type="file" accept="image/*" id="ocrImage">
+    <select id="teamSelect"></select>
+    <button onclick="processOCR()">만보기 이미지 업로드</button>
+
+    <h2>팀 순위</h2>
+    <div id="ranking"></div>
+  </div>
+</body>
+</html>
