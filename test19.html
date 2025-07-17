@@ -10,27 +10,30 @@
       color: white;
       font-family: 'Segoe UI', sans-serif;
       margin: 0;
-    }
-    .centered {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      height: 100vh;
+    }
+    .centered, #main, #admin {
+      width: 100%;
+      max-width: 500px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       padding: 20px;
     }
     .logo {
-      max-width: 160px;
-      margin-bottom: 16px;
+      max-width: 120px;
+      margin-bottom: 12px;
     }
     .card {
       background: #1c1c1c;
-      padding: 16px;
+      padding: 12px;
       border-radius: 10px;
       box-shadow: 0 0 8px rgba(0, 255, 170, 0.2);
-      margin-bottom: 24px;
-      width: 90%;
-      max-width: 600px;
+      margin-bottom: 20px;
+      width: 100%;
     }
     input, select, button {
       font-size: 14px;
@@ -38,6 +41,8 @@
       margin: 6px 0;
       border-radius: 5px;
       border: none;
+      width: 100%;
+      box-sizing: border-box;
     }
     button {
       background: #00ffae;
@@ -64,8 +69,8 @@
       font-weight: bold;
     }
     .team-img {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       object-fit: cover;
       border-radius: 6px;
       margin-right: 6px;
@@ -91,14 +96,14 @@
   <div id="auth" class="centered">
     <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo" />
     <div class="card">
-      <h2>참가 코드 입력</h2>
+      <h2 style="font-size:18px; text-align:center;">참가 코드 입력</h2>
       <input id="codeInput" placeholder="참가자 코드 입력">
       <button onclick="verifyCode()">입력</button>
-      <div id="codeMessage"></div>
+      <div id="codeMessage" style="text-align:center;"></div>
     </div>
   </div>
 
-  <div id="main" class="hidden">
+  <div id="main" class="hidden centered">
     <div class="card">
       <label>팀 선택: </label>
       <select id="teamSelect"></select>
@@ -113,7 +118,7 @@
     </div>
   </div>
 
-  <div id="admin" class="hidden">
+  <div id="admin" class="hidden centered">
     <div class="card">
       <h3>팀 생성</h3>
       <input id="newTeamName" placeholder="팀 이름">
@@ -191,7 +196,7 @@
       const msg = document.getElementById("adminCreateMsg");
       if (!name || teams[name]) return alert("팀 이름이 중복되거나 비어 있습니다.");
       if (!file) return alert("팀 이미지가 필요합니다.");
-      if (Object.keys(teams).length >= 50) return alert("팀은 최대 50개까지 생성할 수 있습니다.");
+      if (Object.keys(images).includes(name)) return alert("동일한 이미지 이름이 이미 존재합니다.");
 
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -203,92 +208,6 @@
       }
       reader.readAsDataURL(file);
     }
-
-    function deleteTeam() {
-      const name = document.getElementById("deleteTeamSelect").value;
-      if (!confirm(`${name} 팀을 삭제하시겠습니까?`)) return;
-      delete teams[name];
-      delete steps[name];
-      delete images[name];
-      save();
-    }
-
-    function save() {
-      localStorage.setItem("teams", JSON.stringify(teams));
-      localStorage.setItem("steps", JSON.stringify(steps));
-      localStorage.setItem("images", JSON.stringify(images));
-      localStorage.setItem("userLog", JSON.stringify(userLog));
-      updateTeamSelect("deleteTeamSelect");
-      updateTeamSelect("teamSelect");
-      updateTeamList();
-      renderRanking();
-    }
-
-    function renderRanking() {
-      const div = document.getElementById("ranking");
-      div.innerHTML = '';
-      const sorted = Object.entries(steps).sort((a, b) => b[1] - a[1]);
-      const max = sorted[0]?.[1] || 1;
-      sorted.forEach(([team, value], i) => {
-        const img = images[team];
-        const percent = Math.round((value / max) * 100);
-        const barHTML = `
-          <div style="margin: 8px 0; font-size: 13px;">
-            <div><strong>${i + 1}위</strong> | <img src="${img}" class="team-img"> ${team}</div>
-            <div class="bar-container">
-              <div class="bar" style="width:${percent}%">${value.toLocaleString()}보</div>
-            </div>
-          </div>`;
-        div.insertAdjacentHTML('beforeend', barHTML);
-      });
-    }
-
-    document.getElementById("imageUpload").addEventListener("change", function () {
-      const file = this.files[0];
-      const team = document.getElementById("teamSelect").value;
-      const result = document.getElementById("result");
-      const user = localStorage.getItem("currentUser");
-      if (!file || !team || !user) return;
-      result.innerText = "인식 중...";
-      Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
-        .then(({ data: { words } }) => {
-          if (!words || words.length === 0) {
-            result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
-            return;
-          }
-
-          const sorted = words
-            .filter(w => /\d{2,5}/.test(w.text))
-            .map(w => {
-              const match = w.text.match(/\d{2,5}/);
-              let num = match ? parseInt(match[0].replace(/[^\d]/g, ''), 10) : 0;
-              return {
-                text: num,
-                size: w.bbox ? (w.bbox.y1 - w.bbox.y0) : 0
-              };
-            })
-            .sort((a, b) => b.size - a.size);
-
-          if (sorted.length === 0 || isNaN(sorted[0].text)) {
-            result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
-            return;
-          }
-
-          let value = sorted[0].text;
-          if (value > 99999 || value <= 0) {
-            result.innerText = "인식된 숫자가 올바르지 않습니다. 다시 시도해주세요.";
-            return;
-          }
-
-          if (!userLog[user]) userLog[user] = 0;
-          userLog[user] += value;
-          steps[team] = (steps[team] || 0) + value;
-          save();
-          renderRanking();
-          result.innerHTML = `✅ ${team} 팀에 ${value.toLocaleString()}보 추가되었습니다!`;
-          result.className = 'success';
-        });
-    });
   </script>
 
   <button id="adminBtn" onclick="promptAdmin()" style="position: fixed; bottom: 16px; right: 16px; background: #00ffaa; color: black; font-weight: bold; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; z-index: 1000; font-size: 14px;">🛠 관리자</button>
