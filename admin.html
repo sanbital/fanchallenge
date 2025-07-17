@@ -2,113 +2,169 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>팬육대: 대신뛰어드림</title>
+  <title>팬육대 관리자 페이지</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, push, set, child, get } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQewV9G-RCX1sXTHv1RY2b6z-oSOeYT9E",
+      authDomain: "fanchallenge-38077.firebaseapp.com",
+      databaseURL: "https://fanchallenge-38077-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "fanchallenge-38077",
+      storageBucket: "fanchallenge-38077.appspot.com",
+      messagingSenderId: "1033231507230",
+      appId: "1:1033231507230:web:8a7b8b57891a6b07efb30f",
+      measurementId: "G-ZMM7YPH7DL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dmdcqdfci/image/upload';
+    const UPLOAD_PRESET = 'fansss'; // 👈 변경한 preset 이름
+    const UPLOAD_FOLDER = 'teams';
+
+    window.onload = () => {
+      const code = prompt("관리자 코드를 입력하세요");
+      if (code !== 'aaa') {
+        alert("코드가 올바르지 않습니다.");
+        window.location.href = "index.html";
+        return;
+      }
+      loadTeams();
+    };
+
+    window.addTeam = () => {
+      const name = document.getElementById('teamName').value.trim();
+      const file = document.getElementById('teamImage').files[0];
+
+      if (!name || !file) return alert('팀 이름과 이미지를 입력하세요');
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('folder', UPLOAD_FOLDER);
+
+      axios.post(CLOUDINARY_URL, formData)
+        .then(response => {
+          const imageUrl = response.data.secure_url;
+          const teamRef = push(ref(db, 'teams'));
+          return set(teamRef, {
+            name: name,
+            image: imageUrl,
+            steps: 0
+          });
+        })
+        .then(() => {
+          alert("팀이 추가되었습니다.");
+          document.getElementById('teamName').value = '';
+          document.getElementById('teamImage').value = '';
+          loadTeams();
+        })
+        .catch(error => {
+          console.error("오류 발생:", error);
+          alert("팀 추가 실패: " + error.message);
+        });
+    };
+
+    window.loadTeams = () => {
+      const teamList = document.getElementById('teamList');
+      teamList.innerHTML = '';
+      get(child(ref(db), 'teams')).then(snapshot => {
+        if (snapshot.exists()) {
+          const teams = snapshot.val();
+          Object.entries(teams).forEach(([_, data]) => {
+            const div = document.createElement('div');
+            div.className = 'team-card';
+            div.innerHTML = `
+              <img src="${data.image}" alt="${data.name}">
+              <p>${data.name}</p>
+            `;
+            teamList.appendChild(div);
+          });
+        }
+      });
+    };
+  </script>
+
   <style>
     body {
-      background-color: #000;
+      background: #0a0a0a;
       color: #fff;
       font-family: 'Inter', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
       margin: 0;
+      padding: 20px;
     }
 
-    #logo {
-      width: 180px;
-      margin-bottom: 24px;
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 24px;
+    h1, h2 {
       text-align: center;
+      margin: 16px 0;
     }
 
-    input {
-      width: 80%;
-      max-width: 300px;
-      padding: 14px 18px;
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    input, button {
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      font-size: 16px;
       border-radius: 12px;
       border: none;
-      background: #1a1a1a;
-      color: #fff;
-      font-size: 16px;
-      margin-bottom: 16px;
-      text-align: center;
     }
 
     button {
-      width: 80%;
-      max-width: 300px;
-      padding: 14px 18px;
-      border-radius: 12px;
-      border: none;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease-in-out;
-      margin-bottom: 12px;
-    }
-
-    .main-btn {
       background-color: #00FFC2;
       color: #000;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
     }
 
-    .main-btn:hover {
+    button:hover {
       background-color: #00e6af;
     }
 
-    .admin-btn {
-      background-color: #222;
-      color: #00FFC2;
-      font-size: 14px;
+    #teamList {
+      margin-top: 20px;
     }
 
-    .admin-btn:hover {
-      background-color: #333;
-    }
-
-    .note {
-      font-size: 12px;
-      color: #888;
-      margin-top: 12px;
+    .team-card {
+      margin-bottom: 16px;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #1a1a1a;
       text-align: center;
     }
+
+    .team-card img {
+      width: 120px;
+      height: auto;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
   </style>
-
-  <script>
-    function enterUser() {
-      const input = document.getElementById('codeInput').value.trim();
-      if (input === '1234') {
-        window.location.href = 'user.html';
-      } else {
-        alert('참여 코드가 올바르지 않습니다.');
-      }
-    }
-
-    function enterAdmin() {
-      const adminCode = prompt("관리자 코드를 입력하세요");
-      if (adminCode && adminCode.toLowerCase() === 'aaa') {
-        window.location.href = 'admin.html';
-      } else {
-        alert('관리자 코드가 올바르지 않습니다.');
-      }
-    }
-  </script>
 </head>
 <body>
-  <img src="./images/muniverse-logo.png" id="logo" alt="Muniverse 로고">
-  <h1>팬육대: 대신뛰어드림</h1>
-  <input type="text" id="codeInput" placeholder="참여 코드를 입력하세요">
-  <button class="main-btn" onclick="enterUser()">입장하기</button>
-  <button class="admin-btn" onclick="enterAdmin()">관리자 모드</button>
-  <div class="note">참여자는 코드 입력 후 입장, 관리자는 별도 인증</div>
+  <div class="container">
+    <h1>팬육대 관리자 페이지</h1>
+
+    <h2>팀 생성</h2>
+    <input type="text" id="teamName" placeholder="팀 이름 입력">
+    <input type="file" accept="image/*" id="teamImage">
+    <button onclick="addTeam()">팀 추가</button>
+
+    <h2>기존 팀 목록</h2>
+    <div id="teamList"></div>
+  </div>
 </body>
 </html>
+
