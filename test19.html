@@ -6,9 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 0;
@@ -16,14 +14,14 @@
       color: white;
       font-family: 'Segoe UI', sans-serif;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      justify-content: center;
     }
-    .centered {
+    .container {
       width: 100%;
       max-width: 480px;
       padding: 20px;
     }
+    .hidden { display: none; }
     .logo {
       max-width: 150px;
       display: block;
@@ -90,51 +88,51 @@
   </style>
 </head>
 <body>
-  <div id="auth" class="centered">
-    <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo">
-    <div class="card">
-      <h2 style="text-align:center">참가 코드 입력</h2>
-      <input id="codeInput" placeholder="참가자 코드 입력">
-      <button onclick="verifyCode()">입력</button>
-      <div id="codeMessage" style="text-align:center;"></div>
+  <div class="container">
+    <div id="auth">
+      <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo">
+      <div class="card">
+        <h2 style="text-align:center">참가 코드 입력</h2>
+        <input id="codeInput" placeholder="참가자 또는 관리자 코드 입력">
+        <button onclick="verifyCode()">입력</button>
+        <div id="codeMessage" style="text-align:center;"></div>
+      </div>
+    </div>
+
+    <div id="main" class="hidden">
+      <div class="card">
+        <label>팀 선택</label>
+        <select id="teamSelect"></select>
+      </div>
+      <div class="card">
+        <input type="file" id="imageUpload" accept="image/*">
+        <div id="result" class="warn">아직 입력이 없습니다.</div>
+      </div>
+      <div class="card">
+        <h3>팀 순위</h3>
+        <div id="ranking"></div>
+      </div>
+    </div>
+
+    <div id="admin" class="hidden">
+      <div class="card">
+        <h3>팀 생성</h3>
+        <input id="newTeamName" placeholder="팀 이름">
+        <input type="file" id="newTeamImage" accept="image/*">
+        <button onclick="createTeam()">팀 생성</button>
+        <div id="adminCreateMsg" class="success"></div>
+      </div>
+      <div class="card">
+        <h3>팀 삭제</h3>
+        <select id="deleteTeamSelect"></select>
+        <button onclick="deleteTeam()">팀 삭제</button>
+      </div>
+      <div class="card">
+        <h3>팀 목록</h3>
+        <div id="adminTeamList"></div>
+      </div>
     </div>
   </div>
-
-  <div id="main" class="centered hidden">
-    <div class="card">
-      <label>팀 선택</label>
-      <select id="teamSelect"></select>
-    </div>
-    <div class="card">
-      <input type="file" id="imageUpload" accept="image/*">
-      <div id="result" class="warn">아직 입력이 없습니다.</div>
-    </div>
-    <div class="card">
-      <h3>팀 순위</h3>
-      <div id="ranking"></div>
-    </div>
-  </div>
-
-  <div id="admin" class="centered hidden">
-    <div class="card">
-      <h3>팀 생성</h3>
-      <input id="newTeamName" placeholder="팀 이름">
-      <input type="file" id="newTeamImage" accept="image/*">
-      <button onclick="createTeam()">팀 생성</button>
-      <div id="adminCreateMsg" class="success"></div>
-    </div>
-    <div class="card">
-      <h3>팀 삭제</h3>
-      <select id="deleteTeamSelect"></select>
-      <button onclick="deleteTeam()">팀 삭제</button>
-    </div>
-    <div class="card">
-      <h3>팀 목록</h3>
-      <div id="adminTeamList"></div>
-    </div>
-  </div>
-
-  <button id="adminBtn" onclick="promptAdmin()" style="position: fixed; bottom: 20px; right: 20px; background: #00ffaa; color: black; font-weight: bold; padding: 12px 16px; border-radius: 10px; border: none; cursor: pointer; z-index: 1000;">🛠 관리자</button>
 
   <script>
     const userCode = "1234";
@@ -148,31 +146,18 @@
       const input = document.getElementById("codeInput").value.trim();
       if (!input) return;
       localStorage.setItem("currentUser", input);
+      document.getElementById("auth").classList.add("hidden");
       if (input === adminCode) {
-        document.getElementById("auth").classList.add("hidden");
         document.getElementById("admin").classList.remove("hidden");
         updateTeamSelect("deleteTeamSelect");
         updateTeamList();
       } else if (input === userCode) {
-        document.getElementById("auth").classList.add("hidden");
         document.getElementById("main").classList.remove("hidden");
         updateTeamSelect("teamSelect");
         renderRanking();
       } else {
+        document.getElementById("auth").classList.remove("hidden");
         document.getElementById("codeMessage").innerText = "잘못된 참가 코드입니다.";
-      }
-    }
-
-    function promptAdmin() {
-      const input = prompt("관리자 코드를 입력하세요");
-      if (input === adminCode) {
-        document.getElementById("auth").classList.add("hidden");
-        document.getElementById("main").classList.add("hidden");
-        document.getElementById("admin").classList.remove("hidden");
-        updateTeamSelect("deleteTeamSelect");
-        updateTeamList();
-      } else {
-        alert("잘못된 관리자 코드입니다.");
       }
     }
 
@@ -204,7 +189,6 @@
       const msg = document.getElementById("adminCreateMsg");
       if (!name || teams[name]) return alert("팀 이름이 중복되거나 비어 있습니다.");
       if (!file) return alert("팀 이미지가 필요합니다.");
-      if (Object.keys(images).includes(name)) return alert("동일한 이미지 이름이 이미 존재합니다.");
 
       const reader = new FileReader();
       reader.onload = function (e) {
