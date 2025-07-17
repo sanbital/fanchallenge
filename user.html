@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getDatabase, ref, push, get, child, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
@@ -48,8 +49,8 @@
           get(teamRef).then(snapshot => {
             const currentSteps = snapshot.exists() ? snapshot.val().steps || 0 : 0;
             update(teamRef, { steps: currentSteps + steps });
-            loadRanking();
             alert(`${steps.toLocaleString()}보가 반영되었습니다.`);
+            loadRanking();
           });
         });
       };
@@ -59,7 +60,10 @@
     window.loadTeams = () => {
       get(child(ref(db), 'teams')).then(snapshot => {
         const select = document.getElementById('teamSelect');
+        const preview = document.getElementById('teamPreview');
         select.innerHTML = '<option disabled selected>팀 선택</option>';
+        preview.innerHTML = '';
+
         if (snapshot.exists()) {
           const teams = snapshot.val();
           Object.entries(teams).forEach(([key, data]) => {
@@ -67,6 +71,14 @@
             opt.value = key;
             opt.textContent = data.name;
             select.appendChild(opt);
+
+            const card = document.createElement('div');
+            card.className = 'team-card';
+            card.innerHTML = `
+              <img src="${data.image || './images/default.png'}" alt="${data.name}">
+              <p>${data.name}</p>
+            `;
+            preview.appendChild(card);
           });
         }
       });
@@ -90,6 +102,7 @@
       });
     };
   </script>
+
   <style>
     body {
       background: #0a0a0a;
@@ -135,17 +148,35 @@
       color: #000;
       font-weight: 500;
     }
+    .team-card {
+      margin-bottom: 16px;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #1a1a1a;
+      text-align: center;
+    }
+    .team-card img {
+      width: 100px;
+      height: auto;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>팬육대: 대신뛰어드림</h1>
+
     <input type="file" accept="image/*" id="ocrImage">
     <select id="teamSelect"></select>
     <button onclick="processOCR()">만보기 이미지 업로드</button>
+
+    <h2>참여 팀 목록</h2>
+    <div id="teamPreview"></div>
 
     <h2>팀 순위</h2>
     <div id="ranking"></div>
   </div>
 </body>
 </html>
+
