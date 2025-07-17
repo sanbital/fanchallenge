@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
-
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
     import { getDatabase, ref, push, get, child, update } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
@@ -24,7 +23,6 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-
     let currentTeamId = null;
 
     window.onload = () => {
@@ -86,7 +84,6 @@
             preview.appendChild(card);
           });
 
-          // 선택 후 기록 불러오기
           select.onchange = () => {
             currentTeamId = select.value;
             loadHistory(currentTeamId);
@@ -101,13 +98,28 @@
         ranking.innerHTML = '';
         if (snapshot.exists()) {
           const teams = Object.entries(snapshot.val());
+          const totalSteps = teams.reduce((sum, [_, t]) => sum + (t.steps || 0), 0);
           teams.sort((a, b) => b[1].steps - a[1].steps);
+
           teams.forEach(([_, team], index) => {
-            const bar = document.createElement('div');
-            bar.className = 'ranking-bar';
-            bar.style.width = `${Math.min(team.steps / 100, 100)}%`;
-            bar.innerHTML = `${index + 1}등 ${team.name} - ${team.steps.toLocaleString()}보`;
-            ranking.appendChild(bar);
+            const percentage = totalSteps > 0 ? ((team.steps / totalSteps) * 100).toFixed(2) : '0.00';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'ranking-item';
+
+            wrapper.innerHTML = `
+              <div class="rank-left">
+                <img src="${team.image || './images/default.png'}" alt="${team.name}">
+                <div class="rank-texts">
+                  <div class="team-name-ko">${team.name}</div>
+                  <div class="team-name-en">${team.name_en || ''}</div>
+                </div>
+              </div>
+              <div class="rank-bar-wrapper">
+                <div class="rank-bar" style="width: ${percentage}%"></div>
+              </div>
+              <div class="rank-percent">${percentage}%</div>
+            `;
+            ranking.appendChild(wrapper);
           });
         }
       });
@@ -171,17 +183,6 @@
       background-color: #222;
       color: #fff;
     }
-    .ranking-bar {
-      background: #00FFC2;
-      height: 24px;
-      border-radius: 12px;
-      margin-bottom: 8px;
-      padding-left: 12px;
-      display: flex;
-      align-items: center;
-      color: #000;
-      font-weight: 500;
-    }
     .team-card {
       margin-bottom: 16px;
       padding: 10px;
@@ -202,12 +203,60 @@
       border-left: 3px solid #00FFC2;
       background-color: #111;
     }
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      background-color: #1a1a1a;
+      padding: 10px;
+      border-radius: 12px;
+    }
+    .rank-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 30%;
+    }
+    .rank-left img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    .rank-texts {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .team-name-ko {
+      font-weight: 600;
+    }
+    .team-name-en {
+      font-size: 12px;
+      color: #ccc;
+    }
+    .rank-bar-wrapper {
+      background-color: #333;
+      height: 10px;
+      flex: 1;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .rank-bar {
+      background-color: #00FFC2;
+      height: 100%;
+    }
+    .rank-percent {
+      width: 60px;
+      text-align: right;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>팬육대: 대신뛰어드림</h1>
-
     <input type="file" accept="image/*" id="ocrImage">
     <select id="teamSelect"></select>
     <button onclick="processOCR()">만보기 이미지 업로드</button>
