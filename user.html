@@ -193,6 +193,33 @@
     .team-card img {
       width: 100px;
       height: auto;
-      b
+      border-radius: 8px;
+    }
+    .history-item {
+      font-size: 14px;
+      margin-bottom: 6px;
+      padding: 4px 8px;
+      border-left: 3px solid #00FFC2;
+      background-color: #111;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>팬육대: 대신뛰어드림</h1>
 
+    <input type="file" accept="image/*" id="ocrImage">
+    <select id="teamSelect"></select>
+    <button onclick="processOCR()">만보기 이미지 업로드</button>
 
+    <h2>참여 팀 목록</h2>
+    <div id="teamPreview"></div>
+
+    <h2>나의 기록</h2>
+    <div id="history"></div>
+
+    <h2>팀 순위</h2>
+    <div id="ranking"></div>
+  </div>
+</body>
+</html>
