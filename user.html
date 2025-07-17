@@ -63,10 +63,7 @@
     window.loadTeams = () => {
       get(child(ref(db), 'teams')).then(snapshot => {
         const select = document.getElementById('teamSelect');
-        const preview = document.getElementById('teamPreview');
         select.innerHTML = '<option disabled selected>팀 선택</option>';
-        preview.innerHTML = '';
-
         if (snapshot.exists()) {
           const teams = snapshot.val();
           Object.entries(teams).forEach(([key, data]) => {
@@ -74,14 +71,6 @@
             opt.value = key;
             opt.textContent = data.name;
             select.appendChild(opt);
-
-            const card = document.createElement('div');
-            card.className = 'team-card';
-            card.innerHTML = `
-              <img src="${data.image || './images/default.png'}" alt="${data.name}">
-              <p>${data.name}</p>
-            `;
-            preview.appendChild(card);
           });
 
           select.onchange = () => {
@@ -98,11 +87,12 @@
         ranking.innerHTML = '';
         if (snapshot.exists()) {
           const teams = Object.entries(snapshot.val());
-          const totalSteps = teams.reduce((sum, [_, t]) => sum + (t.steps || 0), 0);
           teams.sort((a, b) => b[1].steps - a[1].steps);
 
+          const maxSteps = teams[0][1].steps || 1;
+
           teams.forEach(([_, team], index) => {
-            const percentage = totalSteps > 0 ? ((team.steps / totalSteps) * 100).toFixed(2) : '0.00';
+            const ratio = (team.steps / maxSteps) * 100;
             const wrapper = document.createElement('div');
             wrapper.className = 'ranking-item';
 
@@ -115,9 +105,9 @@
                 </div>
               </div>
               <div class="rank-bar-wrapper">
-                <div class="rank-bar" style="width: ${percentage}%"></div>
+                <div class="rank-bar" style="width: ${ratio}%"></div>
               </div>
-              <div class="rank-percent">${percentage}%</div>
+              <div class="rank-steps">${team.steps.toLocaleString()}보</div>
             `;
             ranking.appendChild(wrapper);
           });
@@ -183,19 +173,6 @@
       background-color: #222;
       color: #fff;
     }
-    .team-card {
-      margin-bottom: 16px;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 8px;
-      background: #1a1a1a;
-      text-align: center;
-    }
-    .team-card img {
-      width: 100px;
-      height: auto;
-      border-radius: 8px;
-    }
     .history-item {
       font-size: 14px;
       margin-bottom: 6px;
@@ -219,10 +196,10 @@
       width: 30%;
     }
     .rank-left img {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
+      width: 48px;
+      aspect-ratio: 1 / 1;
       object-fit: cover;
+      border-radius: 8px;
     }
     .rank-texts {
       display: flex;
@@ -247,10 +224,11 @@
       background-color: #00FFC2;
       height: 100%;
     }
-    .rank-percent {
-      width: 60px;
+    .rank-steps {
+      width: 80px;
       text-align: right;
       font-weight: 500;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -261,9 +239,6 @@
     <select id="teamSelect"></select>
     <button onclick="processOCR()">만보기 이미지 업로드</button>
 
-    <h2>참여 팀 목록</h2>
-    <div id="teamPreview"></div>
-
     <h2>나의 기록</h2>
     <div id="history"></div>
 
@@ -272,3 +247,4 @@
   </div>
 </body>
 </html>
+
