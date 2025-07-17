@@ -82,15 +82,23 @@
       text-align: center;
     }
   </style>
+
   <script>
-    function checkCode() {
+    function enterUser() {
       const input = document.getElementById('codeInput').value.trim();
       if (input === '1234') {
         window.location.href = 'user.html';
-      } else if (input.toLowerCase() === 'aaa') {
+      } else {
+        alert('참여 코드가 올바르지 않습니다.');
+      }
+    }
+
+    function enterAdmin() {
+      const adminCode = prompt("관리자 코드를 입력하세요");
+      if (adminCode && adminCode.toLowerCase() === 'aaa') {
         window.location.href = 'admin.html';
       } else {
-        alert('올바른 참여 코드 또는 관리자 코드를 입력하세요.');
+        alert('관리자 코드가 올바르지 않습니다.');
       }
     }
   </script>
@@ -99,9 +107,10 @@
   <img src="./images/muniverse-logo.png" id="logo" alt="Muniverse 로고">
   <h1>팬육대: 대신뛰어드림</h1>
   <input type="text" id="codeInput" placeholder="참여 코드를 입력하세요">
-  <button class="main-btn" onclick="checkCode()">입장하기</button>
-  <button class="admin-btn" onclick="checkCode()">관리자 모드</button>
-  <div class="note">코드가 있어야 입장할 수 있어요</div>
+  <button class="main-btn" onclick="enterUser()">입장하기</button>
+  <button class="admin-btn" onclick="enterAdmin()">관리자 모드</button>
+  <div class="note">참여자는 코드 입력 후 입장, 관리자는 별도 인증</div>
 </body>
 </html>
+
 
