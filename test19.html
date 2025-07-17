@@ -232,10 +232,10 @@
           <div style="margin: 10px 0;">
             <div><strong>${i + 1}위</strong> | <img src="${img}" class="team-img"> ${team}</div>
             <div class="bar-container">
-              <div class="bar" style="width:${percent}%;">${value.toLocaleString()}보</div>
+              <div class="bar" style="width:${percent}%">${value.toLocaleString()}보</div>
             </div>
           </div>`;
-        div.innerHTML += barHTML;
+        div.insertAdjacentHTML('beforeend', barHTML);
       });
     }
 
@@ -267,6 +267,5 @@
   </script>
 
   <button id="adminBtn" onclick="promptAdmin()" style="position: fixed; bottom: 20px; right: 20px; background: #00ffaa; color: black; font-weight: bold; padding: 12px 16px; border-radius: 10px; border: none; cursor: pointer; z-index: 1000;">🛠 관리자</button>
-
 </body>
 </html>
