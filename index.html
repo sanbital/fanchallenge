@@ -3,27 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <title>팬육대: 대신뛰어드림</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    body { background: #000; color: #fff; text-align: center; font-family: sans-serif; }
-    input, button { padding: 10px; margin: 10px; font-size: 16px; }
-  </style>
-</head>
-<body>
-  <h1>팬육대: 대신뛰어드림</h1>
-  <input id="codeInput" type="text" placeholder="참여 또는 관리자 코드를 입력하세요">
-  <button onclick="checkCode()">입장</button>
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
 
+    #logo {
+      width: 180px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    input {
+      width: 80%;
+      max-width: 300px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: none;
+      background: #1a1a1a;
+      color: #fff;
+      font-size: 16px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    button {
+      width: 80%;
+      max-width: 300px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      margin-bottom: 12px;
+    }
+
+    .main-btn {
+      background-color: #00FFC2;
+      color: #000;
+    }
+
+    .main-btn:hover {
+      background-color: #00e6af;
+    }
+
+    .admin-btn {
+      background-color: #222;
+      color: #00FFC2;
+      font-size: 14px;
+    }
+
+    .admin-btn:hover {
+      background-color: #333;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #888;
+      margin-top: 12px;
+      text-align: center;
+    }
+  </style>
   <script>
     function checkCode() {
-      const code = document.getElementById('codeInput').value.trim();
-      if (code === '1234') {
-        location.href = 'user.html';
-      } else if (code.toLowerCase() === 'aaa') {
-        location.href = 'admin.html';
+      const input = document.getElementById('codeInput').value.trim();
+      if (input === '1234') {
+        window.location.href = 'user.html';
+      } else if (input.toLowerCase() === 'aaa') {
+        window.location.href = 'admin.html';
       } else {
-        alert('올바른 코드를 입력하세요.');
+        alert('올바른 참여 코드 또는 관리자 코드를 입력하세요.');
       }
     }
   </script>
+</head>
+<body>
+  <img src="./images/muniverse-logo.png" id="logo" alt="Muniverse 로고">
+  <h1>팬육대: 대신뛰어드림</h1>
+  <input type="text" id="codeInput" placeholder="참여 코드를 입력하세요">
+  <button class="main-btn" onclick="checkCode()">입장하기</button>
+  <button class="admin-btn" onclick="checkCode()">관리자 모드</button>
+  <div class="note">코드가 있어야 입장할 수 있어요</div>
 </body>
 </html>
+
