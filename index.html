@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -57,16 +57,17 @@
       margin: 16px 0;
     }
     input, button, select {
-      width: 100%;
-      margin: 8px 0;
-      padding: 12px;
-      font-size: 16px;
+      width: 90%;
+      margin: 8px auto;
+      padding: 10px;
+      font-size: 15px;
       border-radius: 8px;
       border: none;
+      display: block;
     }
     button {
-      background-color: #5a45ff;
-      color: white;
+      background-color: #00FFC2;
+      color: #000;
       font-weight: 600;
     }
     select {
@@ -85,15 +86,19 @@
       width: 180px;
     }
     .ranking-bar {
-      background: #5a45ff;
+      background: #00FFC2;
       height: 24px;
       border-radius: 12px;
       margin-bottom: 8px;
       padding-left: 12px;
       display: flex;
       align-items: center;
-      color: #fff;
+      color: #000;
       font-weight: 500;
+    }
+    .history-item {
+      font-size: 14px;
+      margin-bottom: 4px;
     }
   </style>
 </head>
@@ -103,7 +108,7 @@
     <h1>팬육대:대신뛰어드림</h1>
     <input type="text" id="codeInput" placeholder="참여 코드를 입력하세요">
     <button onclick="checkCode()">입장</button>
-    <button onclick="goToAdmin()" style="margin-top:10px;font-size:12px;background:#333;">관리자 페이지</button>
+    <button onclick="goToAdmin()" style="margin-top:10px;font-size:12px;background:#222;color:#00FFC2;">관리자 페이지</button>
   </div>
 
   <div class="container hidden" id="userPage">
@@ -112,6 +117,8 @@
     <button onclick="processOCR()">OCR 분석</button>
     <select id="teamSelect"></select>
     <div id="result"></div>
+    <h2>나의 기록</h2>
+    <div id="history"></div>
     <h2>팀 순위</h2>
     <div id="ranking"></div>
   </div>
@@ -130,13 +137,16 @@
     const userPage = document.getElementById('userPage');
     const adminPage = document.getElementById('adminPage');
     const mainPage = document.getElementById('mainPage');
+    let currentCode = '';
 
     function checkCode() {
       const code = codeInput.value.trim();
+      currentCode = code;
       if (code === '1234') {
         mainPage.classList.add('hidden');
         userPage.classList.remove('hidden');
         loadTeams();
+        loadHistory();
       } else if (code.toLowerCase() === 'aaa') {
         mainPage.classList.add('hidden');
         adminPage.classList.remove('hidden');
@@ -220,14 +230,32 @@
       const team = document.getElementById('teamSelect').value;
       if (!team) return alert('팀을 선택하세요.');
       const teamRef = ref(db, `teams/${team}/steps`);
+      const historyRef = ref(db, `users/${currentCode}/history`);
+      const timestamp = new Date().toLocaleString();
       get(teamRef).then(snap => {
         const current = snap.val() || 0;
         set(teamRef, current + step).then(() => {
+          push(historyRef, { step, timestamp });
           alert(`${step}보가 추가되었습니다.`);
           loadTeams();
+          loadHistory();
         });
+      });
+    }
+
+    function loadHistory() {
+      const historyDiv = document.getElementById('history');
+      historyDiv.innerHTML = '';
+      onValue(ref(db, `users/${currentCode}/history`), (snapshot) => {
+        const list = [];
+        snapshot.forEach(child => {
+          const item = child.val();
+          list.push(`<div class='history-item'>${item.timestamp} - ${item.step}보</div>`);
+        });
+        historyDiv.innerHTML = list.reverse().join('');
       });
     }
   </script>
 </body>
 </html>
+
