@@ -9,7 +9,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import { getDatabase, ref, push, set, child, get } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    import { getDatabase, ref, push, set, child, get, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAQewV9G-RCX1sXTHv1RY2b6z-oSOeYT9E",
@@ -26,23 +26,16 @@
     const db = getDatabase(app);
 
     const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dmdcqdfci/image/upload';
-    const UPLOAD_PRESET = 'fansss'; // 👈 변경한 preset 이름
+    const UPLOAD_PRESET = 'fansss';
     const UPLOAD_FOLDER = 'teams';
 
     window.onload = () => {
-      const code = prompt("관리자 코드를 입력하세요");
-      if (code !== 'aaa') {
-        alert("코드가 올바르지 않습니다.");
-        window.location.href = "index.html";
-        return;
-      }
       loadTeams();
     };
 
     window.addTeam = () => {
       const name = document.getElementById('teamName').value.trim();
       const file = document.getElementById('teamImage').files[0];
-
       if (!name || !file) return alert('팀 이름과 이미지를 입력하세요');
 
       const formData = new FormData();
@@ -72,18 +65,31 @@
         });
     };
 
+    window.deleteTeam = (teamId) => {
+      if (!confirm("정말 이 팀을 삭제하시겠습니까?")) return;
+      remove(ref(db, `teams/${teamId}`))
+        .then(() => {
+          alert("팀이 삭제되었습니다.");
+          loadTeams();
+        })
+        .catch(error => {
+          alert("삭제 실패: " + error.message);
+        });
+    };
+
     window.loadTeams = () => {
       const teamList = document.getElementById('teamList');
       teamList.innerHTML = '';
       get(child(ref(db), 'teams')).then(snapshot => {
         if (snapshot.exists()) {
           const teams = snapshot.val();
-          Object.entries(teams).forEach(([_, data]) => {
+          Object.entries(teams).forEach(([key, data]) => {
             const div = document.createElement('div');
             div.className = 'team-card';
             div.innerHTML = `
               <img src="${data.image}" alt="${data.name}">
               <p>${data.name}</p>
+              <button onclick="deleteTeam('${key}')">삭제</button>
             `;
             teamList.appendChild(div);
           });
@@ -132,24 +138,31 @@
       background-color: #00e6af;
     }
 
-    #teamList {
-      margin-top: 20px;
-    }
-
     .team-card {
+      background-color: #1a1a1a;
+      padding: 12px;
       margin-bottom: 16px;
-      padding: 10px;
-      border: 1px solid #444;
-      border-radius: 8px;
-      background: #1a1a1a;
+      border-radius: 12px;
       text-align: center;
+      border: 1px solid #444;
     }
 
     .team-card img {
       width: 120px;
-      height: auto;
       border-radius: 8px;
       margin-bottom: 8px;
+    }
+
+    .team-card button {
+      width: 100px;
+      background-color: #ff4444;
+      color: #fff;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    .team-card button:hover {
+      background-color: #dd3333;
     }
   </style>
 </head>
@@ -167,4 +180,3 @@
   </div>
 </body>
 </html>
-
