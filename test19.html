@@ -99,39 +99,8 @@
       </div>
     </div>
 
-    <div id="main" class="hidden">
-      <div class="card">
-        <label>팀 선택</label>
-        <select id="teamSelect"></select>
-      </div>
-      <div class="card">
-        <input type="file" id="imageUpload" accept="image/*">
-        <div id="result" class="warn">아직 입력이 없습니다.</div>
-      </div>
-      <div class="card">
-        <h3>팀 순위</h3>
-        <div id="ranking"></div>
-      </div>
-    </div>
-
-    <div id="admin" class="hidden">
-      <div class="card">
-        <h3>팀 생성</h3>
-        <input id="newTeamName" placeholder="팀 이름">
-        <input type="file" id="newTeamImage" accept="image/*">
-        <button onclick="createTeam()">팀 생성</button>
-        <div id="adminCreateMsg" class="success"></div>
-      </div>
-      <div class="card">
-        <h3>팀 삭제</h3>
-        <select id="deleteTeamSelect"></select>
-        <button onclick="deleteTeam()">팀 삭제</button>
-      </div>
-      <div class="card">
-        <h3>팀 목록</h3>
-        <div id="adminTeamList"></div>
-      </div>
-    </div>
+    <div id="main" class="hidden"></div>
+    <div id="admin" class="hidden"></div>
   </div>
 
   <script>
@@ -146,23 +115,104 @@
       const input = document.getElementById("codeInput").value.trim();
       if (!input) return;
       localStorage.setItem("currentUser", input);
-      document.getElementById("auth").classList.add("hidden");
-      if (input === adminCode) {
-        document.getElementById("admin").classList.remove("hidden");
-        updateTeamSelect("deleteTeamSelect");
-        updateTeamList();
-      } else if (input === userCode) {
-        document.getElementById("main").classList.remove("hidden");
-        updateTeamSelect("teamSelect");
-        renderRanking();
-      } else {
-        document.getElementById("auth").classList.remove("hidden");
-        document.getElementById("codeMessage").innerText = "잘못된 참가 코드입니다.";
+      document.getElementById("auth").remove();
+
+      if (input === adminCode) renderAdminPage();
+      else if (input === userCode) renderUserPage();
+      else {
+        alert("잘못된 참가 코드입니다.");
+        location.reload();
       }
     }
 
-    function updateTeamSelect(selectId) {
-      const select = document.getElementById(selectId);
+    function renderUserPage() {
+      const div = document.getElementById("main");
+      div.classList.remove("hidden");
+      div.innerHTML = `
+        <div class="card">
+          <label>팀 선택</label>
+          <select id="teamSelect"></select>
+        </div>
+        <div class="card">
+          <input type="file" id="imageUpload" accept="image/*">
+          <div id="result" class="warn">아직 입력이 없습니다.</div>
+        </div>
+        <div class="card">
+          <h3>팀 순위</h3>
+          <div id="ranking"></div>
+        </div>`;
+
+      updateTeamSelect("teamSelect");
+      renderRanking();
+
+      document.getElementById("imageUpload").addEventListener("change", function () {
+        const file = this.files[0];
+        const team = document.getElementById("teamSelect").value;
+        const result = document.getElementById("result");
+        const user = localStorage.getItem("currentUser");
+        if (!file || !team || !user) return;
+
+        result.innerText = "인식 중...";
+
+        Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
+          .then(({ data: { words } }) => {
+            if (!words || words.length === 0) {
+              result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
+              return;
+            }
+            const sorted = words.filter(w => /\d{2,5}/.test(w.text)).map(w => {
+              const match = w.text.match(/\d{2,5}/);
+              let num = match ? parseInt(match[0].replace(/[^\d]/g, ''), 10) : 0;
+              return { text: num, size: w.bbox ? (w.bbox.y1 - w.bbox.y0) : 0 };
+            }).sort((a, b) => b.size - a.size);
+
+            if (sorted.length === 0 || isNaN(sorted[0].text)) {
+              result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
+              return;
+            }
+            let value = sorted[0].text;
+            if (value > 99999 || value <= 0) {
+              result.innerText = "인식된 숫자가 올바르지 않습니다. 다시 시도해주세요.";
+              return;
+            }
+            if (!userLog[user]) userLog[user] = 0;
+            userLog[user] += value;
+            steps[team] = (steps[team] || 0) + value;
+            save();
+            renderRanking();
+            result.innerHTML = `✅ ${team} 팀에 ${value.toLocaleString()}보 추가되었습니다!`;
+            result.className = 'success';
+          });
+      });
+    }
+
+    function renderAdminPage() {
+      const div = document.getElementById("admin");
+      div.classList.remove("hidden");
+      div.innerHTML = `
+        <div class="card">
+          <h3>팀 생성</h3>
+          <input id="newTeamName" placeholder="팀 이름">
+          <input type="file" id="newTeamImage" accept="image/*">
+          <button onclick="createTeam()">팀 생성</button>
+          <div id="adminCreateMsg" class="success"></div>
+        </div>
+        <div class="card">
+          <h3>팀 삭제</h3>
+          <select id="deleteTeamSelect"></select>
+          <button onclick="deleteTeam()">팀 삭제</button>
+        </div>
+        <div class="card">
+          <h3>팀 목록</h3>
+          <div id="adminTeamList"></div>
+        </div>`;
+
+      updateTeamSelect("deleteTeamSelect");
+      updateTeamList();
+    }
+
+    function updateTeamSelect(id) {
+      const select = document.getElementById(id);
       if (!select) return;
       select.innerHTML = '';
       Object.keys(images).forEach(team => {
@@ -187,7 +237,7 @@
       const name = document.getElementById("newTeamName").value.trim();
       const file = document.getElementById("newTeamImage").files[0];
       const msg = document.getElementById("adminCreateMsg");
-      if (!name || teams[name]) return alert("팀 이름이 중복되거나 비어 있습니다.");
+      if (!name || images[name]) return alert("팀 이름이 중복되거나 비어 있습니다.");
       if (!file) return alert("팀 이미지가 필요합니다.");
 
       const reader = new FileReader();
@@ -223,6 +273,7 @@
 
     function renderRanking() {
       const div = document.getElementById("ranking");
+      if (!div) return;
       div.innerHTML = '';
       const sorted = Object.entries(steps).sort((a, b) => b[1] - a[1]);
       const max = sorted[0]?.[1] || 1;
@@ -239,55 +290,6 @@
         div.insertAdjacentHTML('beforeend', barHTML);
       });
     }
-
-    document.getElementById("imageUpload").addEventListener("change", function () {
-      const file = this.files[0];
-      const team = document.getElementById("teamSelect").value;
-      const result = document.getElementById("result");
-      const user = localStorage.getItem("currentUser");
-      if (!file || !team || !user) return;
-
-      result.innerText = "인식 중...";
-
-      Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
-        .then(({ data: { words } }) => {
-          if (!words || words.length === 0) {
-            result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
-            return;
-          }
-
-          const sorted = words
-            .filter(w => /\d{2,5}/.test(w.text))
-            .map(w => {
-              const match = w.text.match(/\d{2,5}/);
-              let num = match ? parseInt(match[0].replace(/[^\d]/g, ''), 10) : 0;
-              return {
-                text: num,
-                size: w.bbox ? (w.bbox.y1 - w.bbox.y0) : 0
-              };
-            })
-            .sort((a, b) => b.size - a.size);
-
-          if (sorted.length === 0 || isNaN(sorted[0].text)) {
-            result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
-            return;
-          }
-
-          let value = sorted[0].text;
-          if (value > 99999 || value <= 0) {
-            result.innerText = "인식된 숫자가 올바르지 않습니다. 다시 시도해주세요.";
-            return;
-          }
-
-          if (!userLog[user]) userLog[user] = 0;
-          userLog[user] += value;
-          steps[team] = (steps[team] || 0) + value;
-          save();
-          renderRanking();
-          result.innerHTML = `✅ ${team} 팀에 ${value.toLocaleString()}보 추가되었습니다!`;
-          result.className = 'success';
-        });
-    });
   </script>
 </body>
 </html>
