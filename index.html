@@ -1,115 +1,112 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>뮤니버스 팬육대 만보기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
+      margin: 0;
+      padding: 0;
       background: black;
       color: white;
       font-family: 'Segoe UI', sans-serif;
-      margin: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-    .centered, #main, #admin {
+    .centered {
       width: 100%;
-      max-width: 500px;
-      margin: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      max-width: 480px;
       padding: 20px;
     }
     .logo {
-      max-width: 120px;
-      margin-bottom: 12px;
+      max-width: 150px;
+      display: block;
+      margin: 30px auto 20px;
     }
     .card {
       background: #1c1c1c;
-      padding: 12px;
-      border-radius: 10px;
-      box-shadow: 0 0 8px rgba(0, 255, 170, 0.2);
+      padding: 16px;
+      border-radius: 12px;
       margin-bottom: 20px;
-      width: 100%;
+      box-shadow: 0 0 8px rgba(0, 255, 170, 0.3);
     }
     input, select, button {
-      font-size: 14px;
-      padding: 6px 10px;
-      margin: 6px 0;
-      border-radius: 5px;
-      border: none;
       width: 100%;
-      box-sizing: border-box;
+      font-size: 16px;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: none;
     }
     button {
       background: #00ffae;
       color: black;
       font-weight: bold;
+      margin-top: 14px;
       cursor: pointer;
-    }
-    .hidden { display: none; }
-    .bar-container {
-      background: #444;
-      border-radius: 6px;
-      overflow: hidden;
-      height: 20px;
-      margin-top: 4px;
-    }
-    .bar {
-      background: #00ffae;
-      height: 100%;
-      text-align: right;
-      padding-right: 8px;
-      line-height: 20px;
-      font-size: 12px;
-      color: black;
-      font-weight: bold;
     }
     .team-img {
       width: 32px;
       height: 32px;
-      object-fit: cover;
       border-radius: 6px;
+      object-fit: cover;
       margin-right: 6px;
-      vertical-align: middle;
     }
     .preview-img {
-      width: 36px;
-      height: 36px;
+      width: 60px;
+      height: 60px;
       object-fit: cover;
-      border: 1px solid #555;
-      margin: 2px;
+      border: 1px solid #666;
     }
-    .success {
-      color: #00ffae;
-      font-weight: bold;
+    .bar-container {
+      background: #444;
+      border-radius: 10px;
+      overflow: hidden;
+      height: 22px;
+      margin-top: 6px;
     }
-    .warn {
-      color: yellow;
+    .bar {
+      background: #00ffae;
+      height: 100%;
+      padding-right: 8px;
+      font-size: 13px;
+      line-height: 22px;
+      color: black;
+      text-align: right;
+    }
+    .success { color: #00ffae; font-weight: bold; }
+    .warn { color: yellow; font-size: 14px; }
+    #adminTeamList {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
     }
   </style>
 </head>
 <body>
   <div id="auth" class="centered">
-    <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo" />
+    <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo">
     <div class="card">
-      <h2 style="font-size:18px; text-align:center;">참가 코드 입력</h2>
+      <h2 style="text-align:center">참가 코드 입력</h2>
       <input id="codeInput" placeholder="참가자 코드 입력">
       <button onclick="verifyCode()">입력</button>
       <div id="codeMessage" style="text-align:center;"></div>
     </div>
   </div>
 
-  <div id="main" class="hidden centered">
+  <div id="main" class="centered hidden">
     <div class="card">
-      <label>팀 선택: </label>
+      <label>팀 선택</label>
       <select id="teamSelect"></select>
     </div>
     <div class="card">
-      <input type="file" id="imageUpload" accept="image/*" />
+      <input type="file" id="imageUpload" accept="image/*">
       <div id="result" class="warn">아직 입력이 없습니다.</div>
     </div>
     <div class="card">
@@ -118,24 +115,26 @@
     </div>
   </div>
 
-  <div id="admin" class="hidden centered">
+  <div id="admin" class="centered hidden">
     <div class="card">
       <h3>팀 생성</h3>
       <input id="newTeamName" placeholder="팀 이름">
-      <input type="file" id="newTeamImage" accept="image/jpeg,image/png">
+      <input type="file" id="newTeamImage" accept="image/*">
       <button onclick="createTeam()">팀 생성</button>
       <div id="adminCreateMsg" class="success"></div>
     </div>
     <div class="card">
-      <h3>기존 팀 삭제</h3>
+      <h3>팀 삭제</h3>
       <select id="deleteTeamSelect"></select>
       <button onclick="deleteTeam()">팀 삭제</button>
     </div>
     <div class="card">
-      <h3>현재 팀 목록</h3>
-      <div id="adminTeamList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px;"></div>
+      <h3>팀 목록</h3>
+      <div id="adminTeamList"></div>
     </div>
   </div>
+
+  <button id="adminBtn" onclick="promptAdmin()" style="position: fixed; bottom: 20px; right: 20px; background: #00ffaa; color: black; font-weight: bold; padding: 12px 16px; border-radius: 10px; border: none; cursor: pointer; z-index: 1000;">🛠 관리자</button>
 
   <script>
     const userCode = "1234";
@@ -150,21 +149,31 @@
       if (!input) return;
       localStorage.setItem("currentUser", input);
       if (input === adminCode) {
-        promptAdmin();
-      } else {
+        document.getElementById("auth").classList.add("hidden");
+        document.getElementById("admin").classList.remove("hidden");
+        updateTeamSelect("deleteTeamSelect");
+        updateTeamList();
+      } else if (input === userCode) {
         document.getElementById("auth").classList.add("hidden");
         document.getElementById("main").classList.remove("hidden");
         updateTeamSelect("teamSelect");
         renderRanking();
+      } else {
+        document.getElementById("codeMessage").innerText = "잘못된 참가 코드입니다.";
       }
     }
 
     function promptAdmin() {
-      document.getElementById("auth").classList.add("hidden");
-      document.getElementById("main").classList.add("hidden");
-      document.getElementById("admin").classList.remove("hidden");
-      updateTeamSelect("deleteTeamSelect");
-      updateTeamList();
+      const input = prompt("관리자 코드를 입력하세요");
+      if (input === adminCode) {
+        document.getElementById("auth").classList.add("hidden");
+        document.getElementById("main").classList.add("hidden");
+        document.getElementById("admin").classList.remove("hidden");
+        updateTeamSelect("deleteTeamSelect");
+        updateTeamList();
+      } else {
+        alert("잘못된 관리자 코드입니다.");
+      }
     }
 
     function updateTeamSelect(selectId) {
@@ -181,11 +190,10 @@
 
     function updateTeamList() {
       const div = document.getElementById("adminTeamList");
-      if (!div) return;
       div.innerHTML = '';
       Object.entries(images).forEach(([team, img]) => {
         const cell = document.createElement('div');
-        cell.innerHTML = `<strong style="font-size:12px">${team}</strong><br><img src="${img}" class="preview-img">`;
+        cell.innerHTML = `<strong style="font-size:14px">${team}</strong><br><img src="${img}" class="preview-img">`;
         div.appendChild(cell);
       });
     }
@@ -205,11 +213,98 @@
         images[name] = e.target.result;
         save();
         msg.innerText = "팀이 생성되었습니다.";
-      }
+      };
       reader.readAsDataURL(file);
     }
-  </script>
 
-  <button id="adminBtn" onclick="promptAdmin()" style="position: fixed; bottom: 16px; right: 16px; background: #00ffaa; color: black; font-weight: bold; padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; z-index: 1000; font-size: 14px;">🛠 관리자</button>
+    function deleteTeam() {
+      const name = document.getElementById("deleteTeamSelect").value;
+      if (!confirm(`${name} 팀을 삭제하시겠습니까?`)) return;
+      delete teams[name];
+      delete steps[name];
+      delete images[name];
+      save();
+    }
+
+    function save() {
+      localStorage.setItem("teams", JSON.stringify(teams));
+      localStorage.setItem("steps", JSON.stringify(steps));
+      localStorage.setItem("images", JSON.stringify(images));
+      localStorage.setItem("userLog", JSON.stringify(userLog));
+      updateTeamSelect("deleteTeamSelect");
+      updateTeamSelect("teamSelect");
+      updateTeamList();
+      renderRanking();
+    }
+
+    function renderRanking() {
+      const div = document.getElementById("ranking");
+      div.innerHTML = '';
+      const sorted = Object.entries(steps).sort((a, b) => b[1] - a[1]);
+      const max = sorted[0]?.[1] || 1;
+      sorted.forEach(([team, value], i) => {
+        const img = images[team];
+        const percent = Math.round((value / max) * 100);
+        const barHTML = `
+          <div style="margin: 8px 0; font-size: 13px;">
+            <div><strong>${i + 1}위</strong> | <img src="${img}" class="team-img"> ${team}</div>
+            <div class="bar-container">
+              <div class="bar" style="width:${percent}%">${value.toLocaleString()}보</div>
+            </div>
+          </div>`;
+        div.insertAdjacentHTML('beforeend', barHTML);
+      });
+    }
+
+    document.getElementById("imageUpload").addEventListener("change", function () {
+      const file = this.files[0];
+      const team = document.getElementById("teamSelect").value;
+      const result = document.getElementById("result");
+      const user = localStorage.getItem("currentUser");
+      if (!file || !team || !user) return;
+
+      result.innerText = "인식 중...";
+
+      Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
+        .then(({ data: { words } }) => {
+          if (!words || words.length === 0) {
+            result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
+            return;
+          }
+
+          const sorted = words
+            .filter(w => /\d{2,5}/.test(w.text))
+            .map(w => {
+              const match = w.text.match(/\d{2,5}/);
+              let num = match ? parseInt(match[0].replace(/[^\d]/g, ''), 10) : 0;
+              return {
+                text: num,
+                size: w.bbox ? (w.bbox.y1 - w.bbox.y0) : 0
+              };
+            })
+            .sort((a, b) => b.size - a.size);
+
+          if (sorted.length === 0 || isNaN(sorted[0].text)) {
+            result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
+            return;
+          }
+
+          let value = sorted[0].text;
+          if (value > 99999 || value <= 0) {
+            result.innerText = "인식된 숫자가 올바르지 않습니다. 다시 시도해주세요.";
+            return;
+          }
+
+          if (!userLog[user]) userLog[user] = 0;
+          userLog[user] += value;
+          steps[team] = (steps[team] || 0) + value;
+          save();
+          renderRanking();
+          result.innerHTML = `✅ ${team} 팀에 ${value.toLocaleString()}보 추가되었습니다!`;
+          result.className = 'success';
+        });
+    });
+  </script>
 </body>
 </html>
+
