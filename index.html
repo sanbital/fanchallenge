@@ -39,6 +39,103 @@
     window.uploadBytes = uploadBytes;
     window.getDownloadURL = getDownloadURL;
   </script>
+  <script>
+    function checkCode() {
+      const input = document.getElementById('codeInput').value.trim();
+      if (input === '1234') {
+        document.getElementById('mainPage').classList.add('hidden');
+        document.getElementById('userPage').classList.remove('hidden');
+      } else if (input.toLowerCase() === 'aaa') {
+        document.getElementById('mainPage').classList.add('hidden');
+        document.getElementById('adminPage').classList.remove('hidden');
+      } else {
+        alert('올바른 코드를 입력하세요.');
+      }
+    }
+
+    function goToAdmin() {
+      document.getElementById('codeInput').value = 'aaa';
+      checkCode();
+    }
+
+    function addTeam() {
+      const name = document.getElementById('teamName').value.trim();
+      const file = document.getElementById('teamImage').files[0];
+      if (!name || !file) return alert('팀 이름과 이미지를 입력하세요');
+      const teamRef = push(ref(db, 'teams'));
+      const storageRef = sRef(storage, 'teamImages/' + teamRef.key);
+      uploadBytes(storageRef, file).then(snapshot => {
+        getDownloadURL(snapshot.ref).then(url => {
+          set(teamRef, { name, image: url, steps: 0 });
+          document.getElementById('teamName').value = '';
+          document.getElementById('teamImage').value = '';
+          loadTeams();
+        });
+      });
+    }
+
+    function loadTeams() {
+      get(child(ref(db), 'teams')).then(snapshot => {
+        const list = document.getElementById('teamList');
+        const select = document.getElementById('teamSelect');
+        list.innerHTML = '';
+        select.innerHTML = '<option disabled selected>팀 선택</option>';
+        if (snapshot.exists()) {
+          const teams = snapshot.val();
+          Object.entries(teams).forEach(([key, data]) => {
+            const div = document.createElement('div');
+            div.innerHTML = `<img src="${data.image}" alt="${data.name}"><p>${data.name}</p>`;
+            list.appendChild(div);
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = data.name;
+            select.appendChild(opt);
+          });
+        }
+      });
+    }
+
+    function processOCR() {
+      const file = document.getElementById('ocrImage').files[0];
+      const teamId = document.getElementById('teamSelect').value;
+      if (!file || !teamId) return alert('이미지와 팀을 선택하세요.');
+      const reader = new FileReader();
+      reader.onload = () => {
+        Tesseract.recognize(reader.result, 'eng').then(({ data: { text } }) => {
+          const nums = text.match(/\d{4,}/g)?.map(n => parseInt(n.replace(/\D/g, ''))) || [];
+          const max = Math.max(...nums, 0);
+          const steps = max >= 10000 ? 10000 : max;
+          push(ref(db, `history/${teamId}`), { time: Date.now(), steps });
+          update(ref(db, `teams/${teamId}`), { steps: window.FirebaseData?.steps + steps || steps });
+          loadRanking();
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadRanking() {
+      get(child(ref(db), 'teams')).then(snapshot => {
+        const ranking = document.getElementById('ranking');
+        ranking.innerHTML = '';
+        if (snapshot.exists()) {
+          const teams = Object.entries(snapshot.val());
+          teams.sort((a, b) => b[1].steps - a[1].steps);
+          teams.forEach(([_, team], index) => {
+            const bar = document.createElement('div');
+            bar.className = 'ranking-bar';
+            bar.style.width = `${Math.min(team.steps / 100, 100)}%`;
+            bar.innerHTML = `${index + 1}등 ${team.name} - ${team.steps.toLocaleString()}보`;
+            ranking.appendChild(bar);
+          });
+        }
+      });
+    }
+
+    window.onload = () => {
+      loadTeams();
+      loadRanking();
+    };
+  </script>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -114,7 +211,7 @@
   <div class="container hidden" id="userPage">
     <h1>팬육대:대신뛰어드림</h1>
     <input type="file" accept="image/*" id="ocrImage">
-    <button onclick="processOCR()">OCR 분석</button>
+    <button onclick="processOCR()">만보기 이미지 올리기</button>
     <select id="teamSelect"></select>
     <div id="result"></div>
     <h2>나의 기록</h2>
@@ -131,130 +228,5 @@
     <h2>기존 팀 목록</h2>
     <div id="teamList"></div>
   </div>
-
-  <script>
-    const codeInput = document.getElementById('codeInput');
-    const userPage = document.getElementById('userPage');
-    const adminPage = document.getElementById('adminPage');
-    const mainPage = document.getElementById('mainPage');
-    let currentCode = '';
-
-    function checkCode() {
-      const code = codeInput.value.trim();
-      currentCode = code;
-      if (code === '1234') {
-        mainPage.classList.add('hidden');
-        userPage.classList.remove('hidden');
-        loadTeams();
-        loadHistory();
-      } else if (code.toLowerCase() === 'aaa') {
-        mainPage.classList.add('hidden');
-        adminPage.classList.remove('hidden');
-        loadTeams();
-      } else {
-        alert('올바른 참여 코드를 입력하세요.');
-      }
-    }
-
-    function goToAdmin() {
-      codeInput.value = 'aaa';
-      checkCode();
-    }
-
-    async function addTeam() {
-      const name = document.getElementById('teamName').value.trim();
-      const file = document.getElementById('teamImage').files[0];
-      if (!name || !file) return alert('팀 이름과 이미지를 모두 입력하세요.');
-
-      const storageRef = window.sRef(window.storage, 'teamImages/' + file.name);
-      try {
-        await window.uploadBytes(storageRef, file);
-        const downloadURL = await window.getDownloadURL(storageRef);
-        const dbRef = window.ref(window.db, `teams/${name}`);
-        await window.set(dbRef, { image: downloadURL, steps: 0 });
-        document.getElementById('teamName').value = '';
-        document.getElementById('teamImage').value = '';
-        loadTeams();
-      } catch (e) {
-        alert('이미지 업로드 실패: ' + e);
-      }
-    }
-
-    function loadTeams() {
-      const teamSelect = document.getElementById('teamSelect');
-      const rankingDiv = document.getElementById('ranking');
-      const teamListDiv = document.getElementById('teamList');
-      teamSelect.innerHTML = '';
-      rankingDiv.innerHTML = '';
-      teamListDiv.innerHTML = '';
-      onValue(ref(db, 'teams'), (snapshot) => {
-        const teams = [];
-        snapshot.forEach(child => {
-          const team = child.key;
-          const data = child.val();
-          teams.push({ name: team, ...data });
-        });
-        teams.sort((a, b) => b.steps - a.steps);
-        teams.forEach((team, i) => {
-          if (teamSelect) {
-            const option = document.createElement('option');
-            option.value = team.name;
-            option.textContent = team.name;
-            teamSelect.appendChild(option);
-          }
-          if (rankingDiv) {
-            const bar = document.createElement('div');
-            bar.className = 'ranking-bar';
-            bar.style.width = Math.min(team.steps / 10000 * 100, 100) + '%';
-            bar.textContent = `${i + 1}위 ${team.name} - ${team.steps}보`;
-            rankingDiv.appendChild(bar);
-          }
-          if (teamListDiv) {
-            const teamBox = document.createElement('div');
-            teamBox.style.display = 'inline-block';
-            teamBox.style.margin = '8px';
-            teamBox.innerHTML = `<img src="${team.image}" alt="${team.name}"><br>${team.name}`;
-            teamListDiv.appendChild(teamBox);
-          }
-        });
-      });
-    }
-
-    async function processOCR() {
-      const image = document.getElementById('ocrImage').files[0];
-      if (!image) return alert('이미지를 선택하세요.');
-      const { data: { text } } = await Tesseract.recognize(image, 'eng');
-      const nums = text.match(/\d{4,}/g)?.map(n => parseInt(n)).sort((a, b) => b - a);
-      let step = nums && nums.length ? nums[0] : 0;
-      if (step > 10000) step = 10000;
-      const team = document.getElementById('teamSelect').value;
-      if (!team) return alert('팀을 선택하세요.');
-      const teamRef = ref(db, `teams/${team}/steps`);
-      const historyRef = ref(db, `users/${currentCode}/history`);
-      const timestamp = new Date().toLocaleString();
-      get(teamRef).then(snap => {
-        const current = snap.val() || 0;
-        set(teamRef, current + step).then(() => {
-          push(historyRef, { step, timestamp });
-          alert(`${step}보가 추가되었습니다.`);
-          loadTeams();
-          loadHistory();
-        });
-      });
-    }
-
-    function loadHistory() {
-      const historyDiv = document.getElementById('history');
-      historyDiv.innerHTML = '';
-      onValue(ref(db, `users/${currentCode}/history`), (snapshot) => {
-        const list = [];
-        snapshot.forEach(child => {
-          const item = child.val();
-          list.push(`<div class='history-item'>${item.timestamp} - ${item.step}보</div>`);
-        });
-        historyDiv.innerHTML = list.reverse().join('');
-      });
-    }
-  </script>
 </body>
 </html>
