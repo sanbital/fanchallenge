@@ -5,6 +5,32 @@
   <title>뮤니버스 팬육대 만보기</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+    import { getDatabase, ref, set, push, get, child, update, onValue, remove } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQewV9G-RCX1sXTHv1RY2b6z-oSOeYT9E",
+      authDomain: "fanchallenge-38077.firebaseapp.com",
+      databaseURL: "https://fanchallenge-38077-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "fanchallenge-38077",
+      storageBucket: "fanchallenge-38077.appspot.com",
+      messagingSenderId: "1033231507230",
+      appId: "1:1033231507230:web:8a7b8b57891a6b07efb30f",
+      measurementId: "G-ZMM7YPH7DL"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window.db = db;
+    window.ref = ref;
+    window.set = set;
+    window.push = push;
+    window.get = get;
+    window.child = child;
+    window.update = update;
+    window.onValue = onValue;
+    window.remove = remove;
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
     * { box-sizing: border-box; }
     body {
@@ -13,12 +39,11 @@
       background: black;
       color: white;
       font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      justify-content: center;
     }
     .container {
       width: 100%;
       max-width: 480px;
+      margin: 0 auto;
       padding: 20px;
     }
     .hidden { display: none; }
@@ -27,14 +52,7 @@
       display: block;
       margin: 30px auto 20px;
     }
-    .card {
-      background: #1c1c1c;
-      padding: 16px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 8px rgba(0, 255, 170, 0.3);
-    }
-    input, select, button {
+    input, button {
       width: 100%;
       font-size: 16px;
       padding: 10px;
@@ -48,19 +66,6 @@
       font-weight: bold;
       margin-top: 14px;
       cursor: pointer;
-    }
-    .team-img {
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      object-fit: cover;
-      margin-right: 6px;
-    }
-    .preview-img {
-      width: 60px;
-      height: 60px;
-      object-fit: cover;
-      border: 1px solid #666;
     }
     .bar-container {
       background: #444;
@@ -78,218 +83,122 @@
       color: black;
       text-align: right;
     }
-    .success { color: #00ffae; font-weight: bold; }
-    .warn { color: yellow; font-size: 14px; }
-    #adminTeamList {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 10px;
-    }
+    .warn { color: yellow; font-size: 14px; text-align: center; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div id="auth">
-      <img src="./01%20Basic%20Type_white.png" alt="Muniverse Logo" class="logo">
-      <div class="card">
-        <h2 style="text-align:center">참가 코드 입력</h2>
-        <input id="codeInput" placeholder="참가자 또는 관리자 코드 입력">
-        <button onclick="verifyCode()">입력</button>
-        <div id="codeMessage" style="text-align:center;"></div>
-      </div>
-    </div>
+  <div class="container" id="codePage">
+    <img class="logo" src="./images/muniverse-logo.png" alt="Muniverse Logo">
+    <h1 style="text-align: center;">고유코드를 입력하세요</h1>
+    <input type="text" id="codeInput" placeholder="참여코드 또는 관리자코드 입력">
+    <button onclick="handleCode()">입장하기</button>
+    <p class="warn" id="warnMessage"></p>
+  </div>
 
-    <div id="main" class="hidden"></div>
-    <div id="admin" class="hidden"></div>
+  <div class="container hidden" id="userPage">
+    <h2>OCR로 걸음 수 업로드</h2>
+    <input type="file" accept="image/*" id="ocrImage">
+    <button onclick="handleOCR()">걸음 수 추출</button>
+    <p id="ocrResult"></p>
+    <h2>팀 순위</h2>
+    <div id="rankingList"></div>
+  </div>
+
+  <div class="container hidden" id="adminPage">
+    <h2>팀 생성</h2>
+    <input type="text" id="teamName" placeholder="팀 이름">
+    <input type="text" id="imageURL" placeholder="팀 이미지 URL">
+    <button onclick="addTeam()">팀 추가</button>
+    <h2>기존 팀 목록</h2>
+    <div id="teamList"></div>
   </div>
 
   <script>
-    const userCode = "1234";
-    const adminCode = "aaa";
-    let teams = JSON.parse(localStorage.getItem("teams") || '{}');
-    let steps = JSON.parse(localStorage.getItem("steps") || '{}');
-    let images = JSON.parse(localStorage.getItem("images") || '{}');
-    let userLog = JSON.parse(localStorage.getItem("userLog") || '{}');
+    const codeInput = document.getElementById('codeInput');
+    const warnMessage = document.getElementById('warnMessage');
+    const codePage = document.getElementById('codePage');
+    const userPage = document.getElementById('userPage');
+    const adminPage = document.getElementById('adminPage');
 
-    function verifyCode() {
-      const input = document.getElementById("codeInput").value.trim();
-      if (!input) return;
-      localStorage.setItem("currentUser", input);
-      document.getElementById("auth").remove();
-
-      if (input === adminCode) renderAdminPage();
-      else if (input === userCode) renderUserPage();
-      else {
-        alert("잘못된 참가 코드입니다.");
-        location.reload();
+    function handleCode() {
+      const code = codeInput.value.trim();
+      if (code === '1234') {
+        codePage.classList.add('hidden');
+        userPage.classList.remove('hidden');
+        loadRanking();
+      } else if (code.toLowerCase() === 'aaa') {
+        codePage.classList.add('hidden');
+        adminPage.classList.remove('hidden');
+        loadTeams();
+      } else {
+        warnMessage.textContent = '올바른 코드를 입력하세요.';
       }
     }
 
-    function renderUserPage() {
-      const div = document.getElementById("main");
-      div.classList.remove("hidden");
-      div.innerHTML = `
-        <div class="card">
-          <label>팀 선택</label>
-          <select id="teamSelect"></select>
-        </div>
-        <div class="card">
-          <input type="file" id="imageUpload" accept="image/*">
-          <div id="result" class="warn">아직 입력이 없습니다.</div>
-        </div>
-        <div class="card">
-          <h3>팀 순위</h3>
-          <div id="ranking"></div>
-        </div>`;
-
-      updateTeamSelect("teamSelect");
-      renderRanking();
-
-      document.getElementById("imageUpload").addEventListener("change", function () {
-        const file = this.files[0];
-        const team = document.getElementById("teamSelect").value;
-        const result = document.getElementById("result");
-        const user = localStorage.getItem("currentUser");
-        if (!file || !team || !user) return;
-
-        result.innerText = "인식 중...";
-
-        Tesseract.recognize(file, 'eng', { logger: m => console.log(m) })
-          .then(({ data: { words } }) => {
-            if (!words || words.length === 0) {
-              result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
-              return;
-            }
-            const sorted = words.filter(w => /\d{2,5}/.test(w.text)).map(w => {
-              const match = w.text.match(/\d{2,5}/);
-              let num = match ? parseInt(match[0].replace(/[^\d]/g, ''), 10) : 0;
-              return { text: num, size: w.bbox ? (w.bbox.y1 - w.bbox.y0) : 0 };
-            }).sort((a, b) => b.size - a.size);
-
-            if (sorted.length === 0 || isNaN(sorted[0].text)) {
-              result.innerText = "걸음 수를 찾을 수 없습니다. 더 화질이 좋은 이미지를 업로드해주세요.";
-              return;
-            }
-            let value = sorted[0].text;
-            if (value > 99999 || value <= 0) {
-              result.innerText = "인식된 숫자가 올바르지 않습니다. 다시 시도해주세요.";
-              return;
-            }
-            if (!userLog[user]) userLog[user] = 0;
-            userLog[user] += value;
-            steps[team] = (steps[team] || 0) + value;
-            save();
-            renderRanking();
-            result.innerHTML = `✅ ${team} 팀에 ${value.toLocaleString()}보 추가되었습니다!`;
-            result.className = 'success';
-          });
+    async function handleOCR() {
+      const file = document.getElementById('ocrImage').files[0];
+      if (!file) return;
+      const resultBox = document.getElementById('ocrResult');
+      resultBox.textContent = '분석 중...';
+      const text = await Tesseract.recognize(file, 'eng');
+      const raw = text.data.text.replace(/[^0-9]/g, '');
+      const step = raw.length >= 5 ? parseInt(raw.slice(0, 5)) : parseInt(raw.slice(0, 4));
+      resultBox.textContent = `인식된 걸음 수: ${step}`;
+      const team = prompt('소속 팀 이름을 입력하세요:');
+      if (!team) return;
+      const dbRef = window.ref(window.db, `steps/${team}`);
+      window.get(dbRef).then(snapshot => {
+        const prev = snapshot.exists() ? snapshot.val() : 0;
+        window.set(dbRef, prev + step).then(loadRanking);
       });
     }
 
-    function renderAdminPage() {
-      const div = document.getElementById("admin");
-      div.classList.remove("hidden");
-      div.innerHTML = `
-        <div class="card">
-          <h3>팀 생성</h3>
-          <input id="newTeamName" placeholder="팀 이름">
-          <input type="file" id="newTeamImage" accept="image/*">
-          <button onclick="createTeam()">팀 생성</button>
-          <div id="adminCreateMsg" class="success"></div>
-        </div>
-        <div class="card">
-          <h3>팀 삭제</h3>
-          <select id="deleteTeamSelect"></select>
-          <button onclick="deleteTeam()">팀 삭제</button>
-        </div>
-        <div class="card">
-          <h3>팀 목록</h3>
-          <div id="adminTeamList"></div>
-        </div>`;
-
-      updateTeamSelect("deleteTeamSelect");
-      updateTeamList();
-    }
-
-    function updateTeamSelect(id) {
-      const select = document.getElementById(id);
-      if (!select) return;
-      select.innerHTML = '';
-      Object.keys(images).forEach(team => {
-        const opt = document.createElement('option');
-        opt.value = team;
-        opt.text = team;
-        select.appendChild(opt);
+    function loadRanking() {
+      const dbRef = window.ref(window.db, 'steps');
+      window.get(dbRef).then(snapshot => {
+        const data = snapshot.val() || {};
+        const list = Object.entries(data).sort((a, b) => b[1] - a[1]);
+        const target = document.getElementById('rankingList');
+        target.innerHTML = '';
+        list.forEach(([team, step], idx) => {
+          const percent = (step / list[0][1]) * 100;
+          target.innerHTML += `
+            <div><b>${idx + 1}. ${team}</b></div>
+            <div class="bar-container"><div class="bar" style="width:${percent}%;">${step}</div></div>
+          `;
+        });
       });
     }
 
-    function updateTeamList() {
-      const div = document.getElementById("adminTeamList");
-      div.innerHTML = '';
-      Object.entries(images).forEach(([team, img]) => {
-        const cell = document.createElement('div');
-        cell.innerHTML = `<strong style="font-size:14px">${team}</strong><br><img src="${img}" class="preview-img">`;
-        div.appendChild(cell);
+    function addTeam() {
+      const name = document.getElementById('teamName').value.trim();
+      const img = document.getElementById('imageURL').value.trim();
+      if (!name || !img) return;
+      const dbRef = window.ref(window.db, `teams/${name}`);
+      window.set(dbRef, { image: img }).then(() => {
+        document.getElementById('teamName').value = '';
+        document.getElementById('imageURL').value = '';
+        loadTeams();
       });
     }
 
-    function createTeam() {
-      const name = document.getElementById("newTeamName").value.trim();
-      const file = document.getElementById("newTeamImage").files[0];
-      const msg = document.getElementById("adminCreateMsg");
-      if (!name || images[name]) return alert("팀 이름이 중복되거나 비어 있습니다.");
-      if (!file) return alert("팀 이미지가 필요합니다.");
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        teams[name] = 0;
-        steps[name] = 0;
-        images[name] = e.target.result;
-        save();
-        msg.innerText = "팀이 생성되었습니다.";
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function deleteTeam() {
-      const name = document.getElementById("deleteTeamSelect").value;
-      if (!confirm(`${name} 팀을 삭제하시겠습니까?`)) return;
-      delete teams[name];
-      delete steps[name];
-      delete images[name];
-      save();
-    }
-
-    function save() {
-      localStorage.setItem("teams", JSON.stringify(teams));
-      localStorage.setItem("steps", JSON.stringify(steps));
-      localStorage.setItem("images", JSON.stringify(images));
-      localStorage.setItem("userLog", JSON.stringify(userLog));
-      updateTeamSelect("deleteTeamSelect");
-      updateTeamSelect("teamSelect");
-      updateTeamList();
-      renderRanking();
-    }
-
-    function renderRanking() {
-      const div = document.getElementById("ranking");
-      if (!div) return;
-      div.innerHTML = '';
-      const sorted = Object.entries(steps).sort((a, b) => b[1] - a[1]);
-      const max = sorted[0]?.[1] || 1;
-      sorted.forEach(([team, value], i) => {
-        const img = images[team];
-        const percent = Math.round((value / max) * 100);
-        const barHTML = `
-          <div style="margin: 8px 0; font-size: 13px;">
-            <div><strong>${i + 1}위</strong> | <img src="${img}" class="team-img"> ${team}</div>
-            <div class="bar-container">
-              <div class="bar" style="width:${percent}%">${value.toLocaleString()}보</div>
+    function loadTeams() {
+      const dbRef = window.ref(window.db, 'teams');
+      window.get(dbRef).then(snapshot => {
+        const data = snapshot.val() || {};
+        const target = document.getElementById('teamList');
+        target.innerHTML = '';
+        for (const [name, { image }] of Object.entries(data)) {
+          target.innerHTML += `
+            <div style="margin-bottom:10px;text-align:center">
+              <img src="${image}" alt="${name}" width="80"><br>
+              <span>${name}</span>
             </div>
-          </div>`;
-        div.insertAdjacentHTML('beforeend', barHTML);
+          `;
+        }
       });
     }
   </script>
 </body>
 </html>
+
